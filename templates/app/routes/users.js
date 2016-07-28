@@ -344,18 +344,19 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
   var address = req.params.address;
   var user = req.params.user;
   var found = false;
+  var remote = req.body.remote;
   //var userContractPath = path.join('app', 'users', user, 'contracts', contractName);
-  var metaPath = path.join('app', 'meta', contractName);
+  //var metaPath = path.join('app', 'meta', contractName);
 
   console.log('args: ' + JSON.stringify(args));
   console.log('method: ' + method);
-  console.log("helo")
+  console.log("remote is " + remote)
     
   contractHelpers.userKeysStream(user)
         .pipe(es.map(function (data,cb) {
 
           if (data.addresses[0] == address) {
-            console.log("address found");
+            console.log("user address found");
             found = true; cb(null,data); 
           }
           else{
@@ -364,7 +365,7 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
           } 
         }))
         .pipe(es.map(function(data, cb) {
-          console.log(data)
+
           if (data.token) {
             console.log("actually called through device - saving in queue"); 
             cb(null, data)
@@ -382,16 +383,57 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
           }
         }))
   .on('data', function(privkeyFrom) {
-    var fileName = path.join(metaPath,contractAddress+'.json');
-    fs.readFile(fileName, function (err,data) {
-      if(data == undefined){
-        console.log("contract does not exist at that address: " + err);
-        res.send("contract does not exist at that address");
-        return;
-      }
-      var contractJson = JSON.parse(data);
+
+    var cmas = contractHelpers.contractsMetaAddressStream(contractName, contractAddress);
+    
+    if(cmas === null) {
+
+      //console.log("no contract found at that address");
+      //res.send("no contract found at that address");
+      cmas = contractHelpers.contractsMetaAddressStream(contractName, contractName);
+
+    }
+  
+    cmas
+    .pipe(contractHelpers.collect())
+    .on('data', function(data){
+
+      console.log("contract: " + JSON.stringify(data))
+
+  // var fileName = path.join(metaPath,contractAddress+'.json');
+  // fs.readFile(fileName, function (err,data) {
+
+  //   if(data == undefined && remote == false){
+  //     console.log("contract does not exist at that address: " + err);
+  //     res.send("contract does not exist at that address");
+  //     return;
+  //   } else if (data == undefined && remote == true){
+  //     var msg = "you want to invoke contract " + contractName + " at address " + contractAddress;
+
+  //     // try opening `contractName.json` and attach it at contractAddress
+  //     var fileNameMod = path.join(metaPath, contractName + '.json');
+  //     console.log("contract to open: " + fileNameMod);
+
+  //     contractHelpers.contractNameStream(contractName)
+  //       .pipe(contractHelpers.collect())
+  //       .on('data', function(contractdata) {
+  //         console.log("hello data!!: " + contractdata)
+  //         res.send(contractData);
+  //       });
+
+
+  //     // fs.readFile(fileNameMod, function(errMod, dataMod){
+  //     //   console.log("this is the contract to modify: " + dataMod);
+
+  //     //     res.send(msg);
+
+  //     // })
+  //   }
+
+      data[0].address = contractAddress;
+      var contractJson = data[0];
       var contract = Solidity.attach(contractJson);
-      contract.address = contractJson.address;
+      //contract.address = contractJson.address;
       value = Math.max(0, value)
       if (value != undefined) {
         var pv = units.convertEth(value).from("ether").to("wei" );
@@ -409,7 +451,7 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
           var dt = date.getTime();
           var pp = path.join('app', 'pending', address);
           var filename = path.join(pp, dt+".json");
-          mkdirp(pp, function (err) { 
+          mkdirp(pp, function (err) {   
             if (err) { 
               console.err(err); 
               res.send(err); 
@@ -440,31 +482,31 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
         } else {
           console.log("Making function call now")
           contractstate.callFrom(privkeyFrom)
-               .then(function (txResult) {
-                 console.log("txResult: " + txResult);
-                 res.send("transaction returned: " + txResult);
-               })
-               .catch(function(err) { 
-                 console.log("error calling contract: " + err)
-                 res.send(err);
-                 return;
-               });
+          .then(function (txResult) {
+            console.log("txResult: " + txResult);
+            res.send("transaction returned: " + txResult);
+          })
+          .catch(function(err) { 
+            console.log("error calling contract: " + err)
+            res.send(err);
+            return;
+          });
         }
       } else {
         console.log("contract " + contractName + " doesn't have method: " + method);
         res.send("contract " + contractName + " doesn't have method: " + method);
         return;
       } 
-
+    }).on('end', function(){
+      console.log("no more contract(s) found at address")
     })
-     // }
   })
-    .on('end', function () {
-      if (!found){
-        console.log('user not found: ' + user);
-        res.send('user not found: ' + user);
-      }
-    })
+  .on('end', function () {
+    if (!found){
+      console.log('user not found: ' + user);
+      res.send('user not found: ' + user);
+    }
+  })
 });
 
 module.exports = router;
