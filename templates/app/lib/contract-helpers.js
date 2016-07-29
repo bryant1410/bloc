@@ -13,7 +13,11 @@ var fs = require('fs');
 
 /* utility */
 var getContents = function(file, cb) {
+//  try{
   cb(null,file.contents);
+  // } catch (error) {
+  //   console.log("tried reading contents, failed: " + error)
+  // }
 };
 
 var getPath = function(file, cb) {
@@ -49,12 +53,26 @@ function contractAddressesStream(name) {
 }
 
 function contractsMetaAddressStream(name,address) { 
-  return vinylFs.src( [ path.join('app', 'meta', name, address + '.json') ] )
+  var fileName = path.join('app', 'meta', name, address + '.json');
+  try {
+    fs.statSync(fileName);
+  } catch(e) {
+    // console.log("my err: " + e);
+    return null;
+  }
+  var vfs = vinylFs.src( [ fileName ] );
+  var toRet = vfs
       .pipe( map(getContents) )
       .pipe( es.map(function (data, cb) {
-        cb(null, JSON.parse(data))
+        try {
+          cb(null, JSON.parse(data))
+        } catch (error) {
+          console.log("tried parsing JSON, failed: " + error)
+        }
       }));
+  return toRet;
 }
+
 /* emits all contract metadata as json */
 function contractsMetaStream() { 
   return vinylFs.src( [ path.join('meta', '*.json') ] )
