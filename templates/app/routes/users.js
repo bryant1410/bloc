@@ -322,8 +322,8 @@ router.post('/:user/:address/contract', cors(), function(req, res) {
 
 
 /* create contract from source */
-router.options('/:user/:address/importcontract', cors()); // enable pre-flight request for DELETE request
-router.post('/:user/:address/importcontract', jsonParser, cors(), function(req, res) {
+router.options('/:user/:address/import', cors()); // enable pre-flight request for DELETE request
+router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
   var password = req.body.password;
   //var method = req.body.method;
   var args = req.body.args;
@@ -457,12 +457,12 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
   .on('data', function(privkeyFrom) {
 
     var cmas = contractHelpers.contractsMetaAddressStream(contractName, contractAddress);
-    if(cmas === null) {
+    // if(cmas === null) {
 
-      //console.log("no contract found at that address");
-      //res.send("no contract found at that address");
-      cmas = contractHelpers.contractsMetaAddressStream(contractName, contractName);
-    }
+    //   //console.log("no contract found at that address");
+    //   //res.send("no contract found at that address");
+    //   cmas = contractHelpers.contractsMetaAddressStream(contractName, contractName);
+    // }
   
     cmas
     .pipe(contractHelpers.collect())
@@ -500,7 +500,7 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
   //     // })
   //   }
 
-      data[0].address = contractAddress;
+      //data[0].address = contractAddress;
       var contractJson = data[0];
       var contract = Solidity.attach(contractJson);
       //contract.address = contractJson.address;
