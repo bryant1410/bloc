@@ -320,6 +320,78 @@ router.post('/:user/:address/contract', cors(), function(req, res) {
   );
 });
 
+
+/* create contract from source */
+router.options('/:user/:address/importcontract', cors()); // enable pre-flight request for DELETE request
+router.post('/:user/:address/importcontract', jsonParser, cors(), function(req, res) {
+  var password = req.body.password;
+  //var method = req.body.method;
+  var args = req.body.args;
+  //var value = req.body.value;
+  var src = req.body.src;
+  var address = req.params.address;
+  var user = req.params.user;
+
+  var args = req.body.args || {};
+  console.log("constructor arguments: " + JSON.stringify(req.body.args));
+
+  contractHelpers.userKeysStream(user)
+  .pipe(es.map(function (data,cb) {
+
+    if (data.addresses[0] == address) {
+      console.log("user address found");
+      found = true; cb(null,data); 
+    }
+    else{
+      console.log("address does not exist for user");
+      cb();
+    } 
+  }))
+  .pipe(es.map(function(data, cb) {
+
+    var privkeyFrom;
+    try { 
+      var store = new lw.keystore.deserialize(JSON.stringify(data));
+      privkeyFrom = store.exportPrivateKey(address, password);
+    } catch (e) {
+      res.send("address not found or password incorrect");
+    }
+
+    cb(null, privkeyFrom);
+    
+  }))
+
+  .on('data', function(privkeyFrom) {
+
+    console.log("src: " + JSON.stringify(src))
+    
+    api.Solidity(src)
+    .then(function(solObj) { 
+      console.log("have solidity object")
+      var toret;
+      if (args.constructor === Object) {
+        console.log("calling constructor")
+        toret = solObj.construct(args);
+      }
+      else {
+        console.log("calling constructor(2)")
+        toret = solObj.construct.apply(solObj, args);
+      }
+      return toret.callFrom(privkeyFrom);  
+    })
+    .then(function (arr) {
+      console.log("hm: " + arr[3]);
+      res.send(arr[3]);
+    }).catch(function(e) {
+      res.send("error uploading contract: " + e);
+    });
+    return;
+  })
+  .on('end', function(){
+    console.log("no more users to process")
+  })
+})
+
 /*
    arguments JSON object
    {
@@ -353,45 +425,43 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
   console.log("remote is " + remote)
     
   contractHelpers.userKeysStream(user)
-        .pipe(es.map(function (data,cb) {
+  .pipe(es.map(function (data,cb) {
 
-          if (data.addresses[0] == address) {
-            console.log("user address found");
-            found = true; cb(null,data); 
-          }
-          else{
-            console.log("address does not exist for user");
-            cb();
-          } 
-        }))
-        .pipe(es.map(function(data, cb) {
+    if (data.addresses[0] == address) {
+      console.log("user address found");
+      found = true; cb(null,data); 
+    }
+    else{
+      console.log("address does not exist for user");
+      cb();
+    } 
+  }))
+  .pipe(es.map(function(data, cb) {
 
-          if (data.token) {
-            console.log("actually called through device - saving in queue"); 
-            cb(null, data)
-          } else { 
-        
-            var privkeyFrom;
-            try { 
-              var store = new lw.keystore.deserialize(JSON.stringify(data));
-              privkeyFrom = store.exportPrivateKey(address, password);
-            } catch (e) {
-              res.send("address not found or password incorrect");
-            }
+    if (data.token) {
+      console.log("actually called through device - saving in queue"); 
+      cb(null, data)
+    } else { 
+  
+      var privkeyFrom;
+      try { 
+        var store = new lw.keystore.deserialize(JSON.stringify(data));
+        privkeyFrom = store.exportPrivateKey(address, password);
+      } catch (e) {
+        res.send("address not found or password incorrect");
+      }
 
-            cb(null, privkeyFrom);
-          }
-        }))
+      cb(null, privkeyFrom);
+    }
+  }))
   .on('data', function(privkeyFrom) {
 
     var cmas = contractHelpers.contractsMetaAddressStream(contractName, contractAddress);
-    
     if(cmas === null) {
 
       //console.log("no contract found at that address");
       //res.send("no contract found at that address");
       cmas = contractHelpers.contractsMetaAddressStream(contractName, contractName);
-
     }
   
     cmas
