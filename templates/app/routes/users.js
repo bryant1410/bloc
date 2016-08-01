@@ -516,7 +516,7 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
 
       if(contract.state[method] != undefined){
         console.log("args: " + JSON.stringify(args))
-        var contractstate = contract.state[method](args).txParams({"value":pv});
+        var contractstate = contract.state[method](args).txParams({"value":pv.toString(10)});
 
         if(privkeyFrom.token){
           console.log("Putting transaction in /pending")
