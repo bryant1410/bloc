@@ -12,8 +12,8 @@
     "flow": "flow; test $? -eq 0 -o $? -eq 2"
   },
   "pre-commit": [
-    "test",
-    "eslint"
+    "eslint",
+    "test"
   ],
   "repository": {
     "type": "git",

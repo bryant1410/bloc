@@ -304,11 +304,11 @@ router.post('/:user/:address/contract', cors(), function(req, res) {
           } else {
             console.log("caught a multi-contract")
             console.log("uploading " + contract)
-            return upload(contract,privkeyFrom, args);
+            return upload(contract, privkeyFrom, args);
           }
           
         }).then(function (arr) {
-          console.log(arr[3]);
+          console.log("address of contract: " + arr[3]);
           res.send(arr[3]);
         }).catch(function(_) {
           res.send("error uploading contract");
@@ -332,6 +332,9 @@ router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
   var address = req.params.address;
   var user = req.params.user;
 
+  var name = req.body.name;
+  var contract = req.body.contract;
+
   var args = req.body.args || {};
   console.log("constructor arguments: " + JSON.stringify(req.body.args));
 
@@ -340,7 +343,7 @@ router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
 
     if (data.addresses[0] == address) {
       console.log("user address found");
-      found = true; cb(null,data); 
+      cb(null,data); 
     }
     else{
       console.log("address does not exist for user");
@@ -366,8 +369,9 @@ router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
     console.log("src: " + JSON.stringify(src))
     
     api.Solidity(src)
-    .then(function(solObj) { 
-      console.log("have solidity object")
+    .then(function(solObjs) { 
+      var solObj = solObjs[contract][name]
+      console.log("have solidity object: " + JSON.stringify(solObj))
       var toret;
       if (args.constructor === Object) {
         console.log("calling constructor")
@@ -377,11 +381,11 @@ router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
         console.log("calling constructor(2)")
         toret = solObj.construct.apply(solObj, args);
       }
-      return toret.callFrom(privkeyFrom);  
+      return toret.callFrom(privkeyFrom);
     })
     .then(function (arr) {
-      console.log("hm: " + arr[3]);
-      res.send(arr[3]);
+      console.log("address of imported contract: " + arr.account.address);
+      res.send(arr.account.address.toString());
     }).catch(function(e) {
       res.send("error uploading contract: " + e);
     });
@@ -400,8 +404,8 @@ router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
      method: theMethod,
      args: {
         namedArg1: val1,
-  namedArg2: val2,
-  ..
+        namedArg2: val2,
+        ..
         }
     }
 */
@@ -512,7 +516,7 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
 
       if(contract.state[method] != undefined){
         console.log("args: " + JSON.stringify(args))
-        var contractstate = contract.state[method](args).txParams({"value":pv});
+        var contractstate = contract.state[method](args).txParams({"value":pv.toString(10)});
 
         if(privkeyFrom.token){
           console.log("Putting transaction in /pending")
@@ -553,8 +557,9 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
           console.log("Making function call now")
           contractstate.callFrom(privkeyFrom)
           .then(function (txResult) {
-            console.log("txResult: " + txResult);
-            res.send("transaction returned: " + txResult);
+            var string = (txResult && Buffer.isBuffer(txResult)) ? txResult.toString('hex') : txResult+"";
+            console.log("txResult", typeof txResult, txResult, string);
+            res.send("transaction returned: " + string);
           })
           .catch(function(err) { 
             console.log("error calling contract: " + err)
