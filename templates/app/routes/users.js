@@ -557,8 +557,9 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
           console.log("Making function call now")
           contractstate.callFrom(privkeyFrom)
           .then(function (txResult) {
-            console.log("txResult: " + txResult);
-            res.send("transaction returned: " + txResult);
+            var string = (txResult && Buffer.isBuffer(txResult)) ? txResult.toString('hex') : txResult+"";
+            console.log("txResult", typeof txResult, txResult, string);
+            res.send("transaction returned: " + string);
           })
           .catch(function(err) { 
             console.log("error calling contract: " + err)
