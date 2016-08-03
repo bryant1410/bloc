@@ -13,7 +13,7 @@ var fs = require('fs');
 
 /* utility */
 var getContents = function(file, cb) {
-//  try{
+  // try{
   cb(null,file.contents);
   // } catch (error) {
   //   console.log("tried reading contents, failed: " + error)
@@ -56,6 +56,7 @@ function contractsMetaAddressStream(name,address) {
   var fileName = path.join('app', 'meta', name, address + '.json');
   var inject = false;
   try {
+    console.log("Looking for contract at: " + fileName)
     fs.statSync(fileName);
   } catch(e) {
     console.log("Contract wasn't already uploaded with that address, trying by injecting address");
@@ -65,24 +66,25 @@ function contractsMetaAddressStream(name,address) {
   try {
     fs.statSync(fileName);
   } catch(e) {
-    console.log("Really couldn't find file, aborting");
+    console.log("Really couldn't find file, aborting: " + fileName);
     return null;
   }
 
   var vfs = vinylFs.src( [ fileName ] );
   var toRet = vfs
-      .pipe( map(getContents) )
-      .pipe( es.map(function (data, cb) {
-        try {
-          var parsedData = JSON.parse(data)
-          if(inject){
-            parsedData.address = address;
-          }
-          cb(null, parsedData)
-        } catch (error) {
-          console.log("tried parsing JSON, failed: " + error)
-        }
-      }));
+    .pipe( map(getContents) )
+    .pipe( es.map(function (data, cb) {
+      var parsedData = {};
+      try {
+        var parsedData = JSON.parse(data)
+      } catch (error) {
+        console.log("failed parsing data")
+      }
+      if(inject){
+        parsedData["address"] = address;
+      }
+      cb(null, parsedData);
+    }));
   return toRet;
 }
 

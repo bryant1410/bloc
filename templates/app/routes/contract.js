@@ -108,10 +108,11 @@ router.get('/:contractName/:contractAddress\.:extension?', function (req, res) {
   var contractMetaAddressStream = helper.contractsMetaAddressStream(contractName,contractAddress)
       .pipe( helper.collect() )
       .pipe( es.map(function (data,cb) {
+        console.log("data is: " + data)
         var contractData = {};
         contractData.contractMeta = data[0];
 
-        cb(null,contractData);
+        cb(null, contractData);
       }))
        
   var configStream = helper.configStream();

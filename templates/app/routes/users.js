@@ -320,7 +320,6 @@ router.post('/:user/:address/contract', cors(), function(req, res) {
   );
 });
 
-
 /* create contract from source */
 router.options('/:user/:address/import', cors()); // enable pre-flight request for DELETE request
 router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
@@ -342,7 +341,7 @@ router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
   .pipe(es.map(function (data,cb) {
 
     if (data.addresses[0] == address) {
-      console.log("user address found");
+      console.log("user address found"); 
       cb(null,data); 
     }
     else{
@@ -370,8 +369,8 @@ router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
     
     api.Solidity(src)
     .then(function(solObjs) { 
-      var solObj = solObjs[contract][name]
       console.log("have solidity object: " + JSON.stringify(solObj))
+      var solObj = solObjs[contract][name]
       var toret;
       if (args.constructor === Object) {
         console.log("calling constructor")
@@ -511,6 +510,7 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
       value = Math.max(0, value)
       if (value != undefined) {
         var pv = units.convertEth(value).from("ether").to("wei" );
+        console.log("pv: " + pv.toString(10))
       }
       console.log("trying to invoke contract")
 
