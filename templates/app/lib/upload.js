@@ -15,7 +15,6 @@ var path = require('path');
  * @return {array}
  */
 function upload(contractName, privkey, argObj) { 
-  console.log("upload contract: " + contractName)
   var compiledFile = path.join('app', 'meta', contractName, contractName + ".json");
 
   var id = setInterval(function () { console.log("    ...waiting for transaction to be mined"); }, 2000);
@@ -23,7 +22,6 @@ function upload(contractName, privkey, argObj) {
   var toRet = fs.readFileAsync(compiledFile, {encoding:"utf8"}).
     then(Solidity.attach).
     then(function(solObj) { 
-   //   console.log("solObj after compilation: " + JSON.stringify(solObj))
       var toret;
       if (argObj.constructor === Object) {
         toret = solObj.construct(argObj);
@@ -31,7 +29,7 @@ function upload(contractName, privkey, argObj) {
       else {
         toret = solObj.construct.apply(solObj, argObj);
       }
-   //   console.log("toRet: " + JSON.stringify(contractHelpers.txToJSON(toret)))
+      //console.log("uploading with privKey: " + privkey)
       return toret.callFrom(privkey);  // txParams({"gasLimit":314159200})
     }).
     then(function(contrObj){
