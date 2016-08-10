@@ -310,8 +310,9 @@ router.post('/:user/:address/contract', cors(), function(req, res) {
         }).then(function (arr) {
           console.log("address of contract: " + arr[3]);
           res.send(arr[3]);
-        }).catch(function(_) {
-          res.send("error uploading contract");
+        }).catch(function(e) {
+          console.log("error uploading contract: " + e);
+          res.send("error uploading contract: " + e);
         });
       })
     .on('end', function () {
