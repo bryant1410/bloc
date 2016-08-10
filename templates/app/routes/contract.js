@@ -240,31 +240,32 @@ router.get('/:contractName/:contractAddress/state', cors(), function (req, res) 
 // deployed within the bloc app.
 router.get('/:contractName/all/states', cors(), function (req, res) {
 
-  var contractName = req.params.contractName;
-  var strRegex = "^[0-9a-fA-F]+$";
-  var re = new RegExp(strRegex);
 
-      // Get all addresses for contracts
-  helper.contractAddressesStream(contractName)
+  var contractname = req.params.contractname;
+  var strregex = "^[0-9a-fa-f]+$";
+  var re = new regexp(strregex);
+
+      // get all addresses for contracts
+  helper.contractaddressesstream(contractname)
           .pipe( helper.collect() )
           .pipe( es.map(function (data,cb) {
             var names = data.map(function (item) {
               return item.split('.')[0];
             });
 
-            cb(null,JSON.stringify(names));
+            cb(null,json.stringify(names));
           }))
-          .pipe(es.map(function(data, _){
-            data = JSON.parse(data);
 
-            // Filter non-hex addresses
-            var hexAddresses = data.filter(function(item){
-              return re.test(item);
-            });
+          .pipe(es.map(function(data, _){
+            data = json.parse(data);
+
             //var found = false;
             var streams = [];
 
-            hexAddresses.forEach(function(contractAddress){
+            // filter non-hex addresses
+            data.filter(function(item){
+              return re.test(item);
+            }).forEach(function(contractAddress){
               //var parsedData;
 
               // Get each contract's solidity data
@@ -283,9 +284,9 @@ router.get('/:contractName/all/states', cors(), function (req, res) {
             var promises = [];
             es.merge(streams).on('data', function(data){
 
-              // Create contract object and extract state data
+              // create contract object and extract state data
               for(var address in data){
-                var contract = Solidity.attach(data[address]);
+                var contract = solidity.attach(data[address]);
                 var promise = Promise.props(contract.state)
                       .then(function(sVars) {
                         var parsed = traverse(sVars).forEach(function (x) {

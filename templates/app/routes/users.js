@@ -256,6 +256,7 @@ router.options('/:user/:address/contract', cors()); // enable pre-flight request
 router.post('/:user/:address/contract', cors(), function(req, res) {
   var user = req.params.user;  
   var address = req.params.address;
+  var txParams = req.params.txParams;
   var contract = req.body.contract;
   console.log("contract as body is: " + contract)
 
@@ -298,11 +299,11 @@ router.post('/:user/:address/contract', cors(), function(req, res) {
             console.log("caught a single contract")
             contract = solObj.src;
             console.log("uploading " + Object.keys(contract)[0])
-            return upload(Object.keys(contract)[0],privkeyFrom, args);
+            return upload(Object.keys(contract)[0],privkeyFrom, args, txParams);
           } else {
             console.log("caught a multi-contract")
             console.log("uploading " + contract)
-            return upload(contract, privkeyFrom, args);
+            return upload(contract, privkeyFrom, args, txParams);
           }
           
         }).then(function (arr) {
@@ -329,6 +330,8 @@ router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
   var src = req.body.src;
   var address = req.params.address;
   var user = req.params.user;
+  
+  var txParams = req.params.txParams;
 
   var name = req.body.name;
   var contract = req.body.contract;
@@ -379,7 +382,7 @@ router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
         console.log("calling constructor(2)")
         toret = solObj.construct.apply(solObj, args);
       }
-      return toret.callFrom(privkeyFrom);
+      return toret.txParams(txParams).callFrom(privkeyFrom);
     })
     .then(function (arr) {
       console.log("address of imported contract: " + arr.account.address);
@@ -413,6 +416,7 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
   var method = req.body.method;
   var args = req.body.args;
   var value = req.body.value;
+  var txParams = req.body.txParams || {};
   var contractName = req.params.contractName;
   var contractAddress = req.params.contractAddress;
   var address = req.params.address;
@@ -511,11 +515,12 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
         var pv = units.convertEth(value).from("ether").to("wei" );
         console.log("pv: " + pv.toString(10))
       }
+      txParams.value = pv.toString(10);
       console.log("trying to invoke contract")
 
       if(contract.state[method] != undefined){
         console.log("args: " + JSON.stringify(args))
-        var contractstate = contract.state[method](args).txParams({"value":pv.toString(10)});
+        var contractstate = contract.state[method](args).txParams(txParams);
 
         if(privkeyFrom.token){
           console.log("Putting transaction in /pending")
