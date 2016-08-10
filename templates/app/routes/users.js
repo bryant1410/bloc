@@ -237,15 +237,13 @@ router.post('/:user/:address/send', cors(), function(req, res) {
                                          "gasPrice" : Int(50000000000)});
                  
         valueTX.send(privkeyFrom, toAddress)
-                .then(function(txResult) {
-                  console.log("transaction result: " + txResult.message);
-                  res.send(JSON.stringify(valueTX));
-                })
-                
-                .catch(function(err) { 
-                  res.send(err);
-                });                 
-                
+        .then(function(txResult) {
+          console.log("transaction result: " + txResult.message);
+          res.send(JSON.stringify(valueTX));
+        })
+        .catch(function(err) { 
+          res.send(err);
+        }); 
       })
 
       .on('end', function () {
