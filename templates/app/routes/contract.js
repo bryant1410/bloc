@@ -240,41 +240,41 @@ router.get('/:contractName/:contractAddress/state', cors(), function (req, res) 
 // deployed within the bloc app.
 router.get('/:contractName/all/states', cors(), function (req, res) {
 
-      var contractName = req.params.contractName;
-      var strRegex = "^[0-9a-fA-F]+$";
-      var re = new RegExp(strRegex);
+  var contractname = req.params.contractname;
+  var strregex = "^[0-9a-fa-f]+$";
+  var re = new regexp(strregex);
 
-      // Get all addresses for contracts
-      helper.contractAddressesStream(contractName)
+      // get all addresses for contracts
+  helper.contractaddressesstream(contractname)
           .pipe( helper.collect() )
           .pipe( es.map(function (data,cb) {
             var names = data.map(function (item) {
               return item.split('.')[0];
             });
 
-            cb(null,JSON.stringify(names));
+            cb(null,json.stringify(names));
           }))
           .pipe(es.map(function(data, cb){
-            data = JSON.parse(data);
+            data = json.parse(data);
 
-            // Filter non-hex addresses
-            var hexAddresses = data.filter(function(item){
+            // filter non-hex addresses
+            var hexaddresses = data.filter(function(item){
               return re.test(item);
             });
             var found = false;
             var streams = [];
 
-            hexAddresses.forEach(function(contractAddress){
-              var parsedData;
+            hexaddresses.foreach(function(contractaddress){
+              var parseddata;
 
-              // Get each contract's solidity data
-              var stream = helper.contractsMetaAddressStream(contractName,contractAddress)
+              // get each contract's solidity data
+              var stream = helper.contractsmetaaddressstream(contractname,contractaddress)
                     .pipe( es.map(function (data,cb) {
-                      if (data.name == contractName) {
+                      if (data.name == contractname) {
                         found = true;
-                        var newData = {};
-                        newData[contractAddress] = data;
-                        cb(null,newData);
+                        var newdata = {};
+                        newdata[contractaddress] = data;
+                        cb(null,newdata);
                       }
                       else cb();
                     }));
@@ -283,9 +283,9 @@ router.get('/:contractName/all/states', cors(), function (req, res) {
             var promises = [];
             es.merge(streams).on('data', function(data){
 
-              // Create contract object and extract state data
+              // create contract object and extract state data
               for(var address in data){
-                var contract = Solidity.attach(data[address]);
+                var contract = solidity.attach(data[address]);
                 var promise = Promise.props(contract.state)
                       .then(function(sVars) {
                         var parsed = traverse(sVars).forEach(function (x) {

@@ -165,10 +165,10 @@ function main (){
         solSrcFiles = [fname];
       }
       else {
-          solSrcFiles = fs.readdirSync(solSrcDir).
-            filter(function(filename) {
-              return path.extname(filename) === '.sol';
-            })
+        solSrcFiles = fs.readdirSync(solSrcDir).
+          filter(function(filename) {
+            return path.extname(filename) === '.sol';
+          })
       }
 
       Promise.all(solSrcFiles).

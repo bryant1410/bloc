@@ -14,7 +14,7 @@ var path = require('path');
  * @param {object} Constructor arguments
  * @return {array}
  */
-function upload(contractName, privkey, argObj) { 
+function upload(contractName, privkey, argObj, params) { 
   var compiledFile = path.join('app', 'meta', contractName, contractName + ".json");
 
   var id = setInterval(function () { console.log("    ...waiting for transaction to be mined"); }, 2000);
@@ -30,7 +30,7 @@ function upload(contractName, privkey, argObj) {
         toret = solObj.construct.apply(solObj, argObj);
       }
       //console.log("uploading with privKey: " + privkey)
-      return toret.callFrom(privkey);  // txParams({"gasLimit":314159200})
+      return toret.txParams(params).callFrom(privkey);
     }).
     then(function(contrObj){
       var addr = contrObj.account.address.toString();
