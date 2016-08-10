@@ -243,7 +243,7 @@ router.get('/:contractName/all/states', cors(), function (req, res) {
 
   var contractname = req.params.contractname;
   var strregex = "^[0-9a-fa-f]+$";
-  var re = new regexp(strregex);
+  var re = new RegExp(strregex);
 
       // get all addresses for contracts
   helper.contractaddressesstream(contractname)
@@ -253,11 +253,11 @@ router.get('/:contractName/all/states', cors(), function (req, res) {
               return item.split('.')[0];
             });
 
-            cb(null,json.stringify(names));
+            cb(null,JSON.stringify(names));
           }))
 
           .pipe(es.map(function(data, _){
-            data = json.parse(data);
+            data = JSON.parse(data);
 
             //var found = false;
             var streams = [];
@@ -286,7 +286,7 @@ router.get('/:contractName/all/states', cors(), function (req, res) {
 
               // create contract object and extract state data
               for(var address in data){
-                var contract = solidity.attach(data[address]);
+                var contract = Solidity.attach(data[address]);
                 var promise = Promise.props(contract.state)
                       .then(function(sVars) {
                         var parsed = traverse(sVars).forEach(function (x) {
