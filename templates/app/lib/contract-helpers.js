@@ -61,7 +61,7 @@ function contractsMetaAddressStream(name,address) {
   } catch(e) {
     console.log("Contract wasn't already uploaded with that address, trying by injecting address");
     inject = true;
-    fileName = path.join('app', 'meta', name, name + '.json');
+    fileName = path.join('app', 'meta', name, "Latest" + '.json');
   }
   try {
     fs.statSync(fileName);
