@@ -256,7 +256,7 @@ router.options('/:user/:address/contract', cors()); // enable pre-flight request
 router.post('/:user/:address/contract', cors(), function(req, res) {
   var user = req.params.user;  
   var address = req.params.address;
-  var txParams = req.params.txParams;
+  var txParams = req.body.txParams;
   var contract = req.body.contract;
   console.log("contract as body is: " + contract)
 
