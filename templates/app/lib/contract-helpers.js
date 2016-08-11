@@ -66,6 +66,11 @@ function contractsMetaAddressStream(name,address) {
   try {
     fs.statSync(fileName);
   } catch(e) {
+    fileName = path.join('app', 'meta', name, name + '.json');
+  }
+  try {
+    fs.statSync(fileName);
+  } catch(e) {
     console.log("Really couldn't find file, aborting: " + fileName);
     return null;
   }
