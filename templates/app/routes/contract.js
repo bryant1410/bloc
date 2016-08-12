@@ -233,13 +233,67 @@ router.get('/:contractName/:contractAddress/state', cors(), function (req, res) 
       .on('end', function () {
         if (!found) res.send("contract not found");
       });
+});
 
+router.get('/:contractName/:contractAddress/state/:mapping/:key', cors(), function (req, res) {
+
+  var contractName = req.params.contractName;
+  var contractAddress = req.params.contractAddress;
+
+  var mapping_ = req.params.mapping;
+  var key = req.params.key;
+
+  var found = false;
+
+  helper.contractsMetaAddressStream(contractName,contractAddress)
+      .pipe( es.map(function (data,cb) {
+        if (data.name == contractName) {
+          found = true;
+          cb(null,data);
+        }
+        else cb();
+      }))
+
+      .on('data', function(data) {
+        var contract = Solidity.attach(data);
+
+        var toRet;
+        try {
+          toRet = contract.state[mapping_](key);
+        } catch (error){  // how to catch only a specific error here?
+                        // Mapping: Solidity: Solidity: bytes32 type requires 32 bytes (64 hex digits)
+          var keyEncoded = helper.toSolidity(key)
+          try {
+            toRet = contract.state[mapping_](keyEncoded)
+          } catch (error2){
+            console.log("invalid map " + mapping_);
+            res.send("invalid map " + mapping_);
+            return;
+          }
+        }
+
+        return toRet
+              .then(function(v) {
+                var mapping = {};
+                mapping[key] = v;
+                var anObj = {};
+                anObj[mapping_] = mapping;
+                res.send(anObj);
+              })
+              .catch(function(err) {
+                console.log("contract/state/mapping/key - error: " + err)
+                res.send(JSON.stringify(err));
+              });
+      })
+
+      .on('end', function () {
+        if (!found) res.send("contract not found");
+      });
 });
 
 // Get the states for all deployed contracts with the 'contractName'
 // deployed within the bloc app.
 router.get('/:contractName/all/states', cors(), function (req, res) {
-
 
   var contractname = req.params.contractname;
   var strregex = "^[0-9a-fa-f]+$";
