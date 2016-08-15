@@ -295,12 +295,12 @@ router.get('/:contractName/:contractAddress/state/:mapping/:key', cors(), functi
 // deployed within the bloc app.
 router.get('/:contractName/all/states', cors(), function (req, res) {
 
-  var contractname = req.params.contractname;
+  var contractName = req.params.contractName;
   var strregex = "^[0-9a-fa-f]+$";
   var re = new RegExp(strregex);
 
       // get all addresses for contracts
-  helper.contractaddressesstream(contractname)
+  helper.contractAddressesStream(contractName)
           .pipe( helper.collect() )
           .pipe( es.map(function (data,cb) {
             var names = data.map(function (item) {
