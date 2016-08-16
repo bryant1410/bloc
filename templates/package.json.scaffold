@@ -11,7 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "bower" : "^1.7.7", 
-    "blockapps-js": "blockapps/blockapps-js#rai-stones",
+    "blockapps-js": "blockapps/blockapps-js#5ecd50e56ef69deb52c089addeab58f1dee34e82",
     "bluebird": "^3.0.5",
     "body-parser": "^1.14.1",
     "chalk": "^1.1.3",
