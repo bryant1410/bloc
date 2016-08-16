@@ -307,11 +307,13 @@ router.post('/:user/:address/contract', cors(), function(req, res) {
           }
           
         }).then(function (arr) {
-          console.log("address of contract: " + arr[3]);
-          res.send(arr[3]);
+          var addressOfContract = arr[3];
+          console.log("address of contract: " + addressOfContract);
+          res.send(addressOfContract);
         }).catch(function(e) {
-          console.log("error uploading contract: " + e);
-          res.send("error uploading contract: " + e);
+          var message = "error uploading contract - your contract probably didn't compile (" + e + ")";
+          console.log(message);
+          res.send(message);
         });
       })
     .on('end', function () {
