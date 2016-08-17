@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "bignumber.js": "^2.0.7",
-    "blockapps-js": "blockapps/blockapps-js#5ecd50e56ef69deb52c089addeab58f1dee34e82",
+    "blockapps-js": "blockapps/blockapps-js#rai-stones",
     "bluebird": "^2.9.34",
     "body-parser": "^1.14.1",
     "chalk": "^1.1.3",
