@@ -8,6 +8,7 @@ var home = require('./app/routes/home.js');
 var users = require('./app/routes/users.js');
 var addresses = require('./app/routes/addresses.js');
 var contracts = require('./app/routes/contract.js');
+var search = require('./app/routes/search.js');
 
 var helper = require('./app/lib/contract-helpers');
 var api = require('blockapps-js');
@@ -38,6 +39,7 @@ app.use('/', home);
 app.use('/users', users); 
 app.use('/addresses', addresses);
 app.use('/contracts', contracts);
+app.use('/search', search);
 
 app.use('/static', express.static('app/static'));
 app.use('/images', express.static('images'));
