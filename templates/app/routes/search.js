@@ -14,6 +14,9 @@ var rp = require('request-promise');
 
 require('marko/node-require').install();
 
+var homeTemplate = require('marko').load(require.resolve('../components/home/home.marko'));
+var contractTemplate = require('marko').load(require.resolve('../components/contracts/template.marko'));
+
 var yaml = require('js-yaml');
 var fs = require('fs');
 var config = yaml.safeLoad(fs.readFileSync('config.yaml'));
@@ -69,8 +72,13 @@ router.get('/:contractName/state', cors(), function (req, res) {
   var states = {};
   var masterContract;
 
-  helper.contractsMetaAddressStream(contractName, 'Latest')
-      .pipe( es.map(function (data,cb) {
+  let results = helper.contractsMetaAddressStream(contractName, 'Latest');
+
+  if(results === null){
+    console.log("couldn't find any contracts");
+    res.send("[]")
+  } else {
+      results.pipe( es.map(function (data,cb) {
         if (data.name == contractName) {
           found = true;
           masterContract = data;
@@ -78,7 +86,7 @@ router.get('/:contractName/state', cors(), function (req, res) {
           //console.log("The `address` is: " + data.address)
           cb(null,data);
         }
-        else cb();
+         else cb();
       }))
 
       .pipe( es.map(function (data, cb) {
@@ -112,11 +120,11 @@ router.get('/:contractName/state', cors(), function (req, res) {
 
       .pipe( es.map(function (data, cb) {
 
-        var items = data;
+        let items = data;
 
         function lookupState(item){
-          return new Promise(function(resolve, _){
-            setTimeout(function(_){
+          return new Promise((resolve, reject)=>{
+            setTimeout(()=>{
 
               var tempContract = masterContract;
               //console.log("Fed data as: " + JSON.stringify(item))
@@ -143,25 +151,26 @@ router.get('/:contractName/state', cors(), function (req, res) {
         }
 
         function processItem(item){
-          var steps = [lookupState];
-          return steps.reduce(function(current, next){
-            return current.then(function(_) {
+          let steps = [lookupState];
+          return steps.reduce((current, next) => {
+            return current.then(res => {
               //console.log("l1: " + res);
               return next(item);
-            }).then(function(_){
+            }).then(res => {
               //console.log("l2: " + res);
             });
           },Promise.resolve());
         }
-        var processedItems = items.map(function(i){processItem(i)}).reduce(
-            function(p, next){p.then(next)}, Promise.resolve()
-        ).then(function(_){
-          cb(null, processedItems)
+        var processedItems = items.map(i => () => processItem(i)).reduce(
+            (p, next) => p.then(next),
+            Promise.resolve()
+        ).then(() => {
+            cb(null, processedItems)
         });
 
       }))
 
-      .on('data', function(_) {
+      .on('data', function(data) {
         // console.log("on: " + JSON.stringify(states))
         res.send(JSON.stringify(states))
       })
@@ -169,6 +178,7 @@ router.get('/:contractName/state', cors(), function (req, res) {
       .on('end', function () {
         if (!found) res.send("contract not found");
       });
+    }
 });
 
 module.exports = router;
