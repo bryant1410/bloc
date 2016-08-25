@@ -38,32 +38,6 @@ router.get('/:contractName', cors(), function (req, res) {
       .pipe(res)
 });
 
-router.get('/:contractName/:contractAddress/functions', cors(), function (req, res) {
-  var contractName = req.params.contractName;
-  var contractAddress = req.params.contractAddress;
-  var found = false;
-
-  helper.contractsMetaAddressStream(contractName,contractAddress)
-        .pipe( es.map(function (data,cb) {
-          if (data.name == contractName) {
-            found = true;
-            var funcs = Object.keys(data.xabi.funcs);
-            cb(null,JSON.stringify(funcs));
-          }
-          else cb();
-        }))
-        .on('error', function(err) {
-          console.log("error: " + err);
-          res.send(err);
-        })
-        .on('data', function(data) {
-          res.send(data);
-        })
-        .on('end', function() {
-          if (!found) res.send("contract not found");
-        });
-});
-
 router.get('/:contractName/state', cors(), function (req, res) {
   var contractName = req.params.contractName;
   var found = false;
