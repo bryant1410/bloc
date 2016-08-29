@@ -44,7 +44,10 @@ router.get('/:contractName/state', cors(), function (req, res) {
 
   var addresses;
   var states = {};
-  var masterContract;
+  var promises = [];
+  var masterContract = {};
+  var xabi = {};
+
 
   let results = helper.contractsMetaAddressStream(contractName, 'Latest');
 
@@ -55,9 +58,8 @@ router.get('/:contractName/state', cors(), function (req, res) {
       results.pipe( es.map(function (data,cb) {
         if (data.name == contractName) {
           found = true;
-          masterContract = data;
-          //console.log("Found contract Latest: " + JSON.stringify(data))
-          //console.log("The `address` is: " + data.address)
+          masterContract = JSON.stringify(data);
+          xabi = data.xabi;
           cb(null,data);
         }
          else cb();
@@ -77,10 +79,10 @@ router.get('/:contractName/state', cors(), function (req, res) {
       .pipe( es.map(function (data, cb) {
         rp({uri: apiURI + '/eth/v1.2/account?code='+data, json: true})
           .then(function (result) {
-            //console.log("s2: " + JSON.stringify(result))
             cb(null, result)
           })
           .catch(function (err) {
+            console.log("rp failure", err);
             cb(null, err)
           });
       }))
@@ -92,65 +94,45 @@ router.get('/:contractName/state', cors(), function (req, res) {
         cb(null,addresses);
       }))
 
-      .pipe( es.map(function (data, cb) {
-
-        let items = data;
-
-        function lookupState(item){
-          return new Promise((resolve, reject)=>{
-            setTimeout(()=>{
-
-              var tempContract = masterContract;
-              //console.log("Fed data as: " + JSON.stringify(item))
-              tempContract.address = item;
-
-              var contract = Solidity.attach(tempContract);
-              return Promise.props(contract.state)
-                    .then(function(sVars) {
-
-                      var parsed = traverse(sVars).forEach(function (x) {
-                        if (Buffer.isBuffer(x)) {
-                          this.update(x.toString());
-                        }
-                      });
-                      states[item] = parsed;
-                      resolve("lookupState() complete: " + JSON.stringify(parsed));
-                    })
-
-                    .catch(function(err) {
-                      console.log("contract/state sVars - error: " + err)
-                    });
-            });
-          });
-        }
-
-        function processItem(item){
-          let steps = [lookupState];
-          return steps.reduce((current, next) => {
-            return current.then(res => {
-              //console.log("l1: " + res);
-              return next(item);
-            }).then(res => {
-              //console.log("l2: " + res);
-            });
-          },Promise.resolve());
-        }
-        var processedItems = items.map(i => () => processItem(i)).reduce(
-            (p, next) => p.then(next),
-            Promise.resolve()
-        ).then(() => {
-            cb(null, processedItems)
-        });
-
-      }))
-
       .on('data', function(data) {
-        // console.log("on: " + JSON.stringify(states))
-        res.send(JSON.stringify(states))
+        let items = data;
+        let contractData = {};
+
+        //Get initial abi/bin to create first contract
+        for(var prop in masterContract){
+          contractData[prop] = masterContract[prop];
+        }
+        for(var i=0; i < items.length; i++) {
+          const item = items[i];
+          const contractData = JSON.parse(masterContract);
+
+          const contract = Solidity.attach(contractData);
+
+          var promise = Promise.props(contract.state).then(function(sVars) {
+            var parsed = traverse(sVars).forEach(function (x) {
+              if (Buffer.isBuffer(x)) {
+                this.update(x.toString());
+              }
+            });
+            return parsed;
+          })
+          .catch(function(err) {
+            console.log("contract/state sVars - error: " + err)
+          });
+          promises.push(promise);
+        }
       })
 
       .on('end', function () {
-        if (!found) res.send("contract not found");
+
+        if (!found) {
+          res.send("contract not found");
+        }
+        else {
+          Promise.all(promises).then(function(resp){
+            res.send(resp);
+          });
+        }
       });
     }
 });
