@@ -39,108 +39,69 @@ router.get('/:contractName', cors(), function (req, res) {
 });
 
 router.get('/:contractName/state', cors(), function (req, res) {
-  var contractName = req.params.contractName;
-  var found = false;
-
-  var addresses;
-  var states = {};
-  var promises = [];
-  var masterContract = {};
-  var xabi = {};
-
-
-  let results = helper.contractsMetaAddressStream(contractName, 'Latest');
-
-  if(results === null){
-    console.log("couldn't find any contracts");
-    res.send("[]")
-  } else {
-      results.pipe( es.map(function (data,cb) {
-        if (data.name == contractName) {
-          found = true;
-          masterContract = JSON.stringify(data);
-          xabi = data.xabi;
-          cb(null,data);
-        }
-         else cb();
-      }))
-
-      .pipe( es.map(function (data, cb) {
-        rp({uri: apiURI + '/eth/v1.2/account?address='+data.address, json: true})
-          .then(function (result) {
-            //console.log("s1: " + JSON.stringify(result))
-            cb(null, result[0].code)
-          })
-          .catch(function (err) {
-            cb(null, err)
-          });
-      }))
-
-      .pipe( es.map(function (data, cb) {
-        rp({uri: apiURI + '/eth/v1.2/account?code='+data, json: true})
-          .then(function (result) {
-            cb(null, result)
-          })
-          .catch(function (err) {
-            console.log("rp failure", err);
-            cb(null, err)
-          });
-      }))
-
-      .pipe( es.map(function (data,cb) {
-        addresses = data.map(function (item) {
-          return item.address;
-        });
-        cb(null,addresses);
-      }))
-
-      .on('data', function(data) {
-        let items = data;
-        let contractData = {};
-
-        //Get initial abi/bin to create first contract
-        for(var prop in masterContract){
-          contractData[prop] = masterContract[prop];
-        }
-        for(var i=0; i < items.length; i++) {
-          const item = items[i];
-          const contractData = JSON.parse(masterContract);
-
-          const contract = Solidity.attach(contractData);
-
-          var promise = Promise.props(contract.state).then(function(sVars) {
-            var parsed = traverse(sVars).forEach(function (x) {
-              if (Buffer.isBuffer(x)) {
-                this.update(x.toString());
-              }
-            });
-            return parsed;
-          })
-          .catch(function(err) {
-            console.log("contract/state sVars - error: " + err)
-          });
-          promises.push(promise);
-        }
-      })
-
-      .on('end', function () {
-
-        if (!found) {
-          res.send("contract not found");
-        }
-        else {
-          Promise.all(promises).then(function(resp){
-            res.send(resp);
-          });
-        }
-      });
-    }
+  getStatesFor(req.params.contractName).then(function(resp){
+    res.send(resp);
+  });
 });
 
 router.get('/:contractName/state/reduced', cors(), function (req, res) {
   const reducedStatePropeties = ['currentVendor', 'sampleType', 'currentState',
     'currentLocationType','buid', 'wellName'];
-  var contractName = req.params.contractName;
+    getStatesFor(req.params.contractName, reducedStatePropeties).then(function(resp){
+      res.send(resp);
+    });
+});
+
+router.get('/:contractName/state/summary', cors(), function (req, res) {
+  var well = req.query.well;
+  getStatesFor(req.params.contractName).then(function(resp){
+    var summary = [];
+    if (well) {
+      var wellSummary = {};
+      var filtered = resp.filter(function(item) {
+        return item.wellName === well;
+      });
+      filtered.forEach(function(item) {
+        if(wellSummary[item.currentState.key]) {
+          wellSummary[item.currentState.key]++;
+        } else {
+          wellSummary[item.currentState.key] = 1;
+        }
+      });
+      summary.push(wellSummary)
+    } else {
+
+      // Get all well names
+      var wells = [];
+      resp.forEach(function(item){
+        if (!wells.includes(item.wellName)) {
+          wells.push(item.wellName);
+        }
+      });
+
+      //For each well name
+      wells.forEach(function(item){
+        var wellSummary = {};
+        wellSummary[item] = {};
+
+        resp.forEach(function(sample) {
+          if (sample.wellName === item) {
+            if (wellSummary[item][sample.currentState.key]) {
+              wellSummary[item][sample.currentState.key]++;
+            } else {
+              wellSummary[item][sample.currentState.key] = 1;
+            }
+          }
+        });
+        summary.push(wellSummary);
+      });
+    }
+    res.send(summary);
+  });
+});
+
+function getStatesFor(contract, reducedState) {
+  var contractName = contract;
   var found = false;
 
   var addresses;
@@ -149,97 +110,105 @@ router.get('/:contractName/state/reduced', cors(), function (req, res) {
   var masterContract = {};
   var xabi = {};
 
+  return new Promise(function (resolve, reject) {
+    let results = helper.contractsMetaAddressStream(contractName, 'Latest');
 
-  let results = helper.contractsMetaAddressStream(contractName, 'Latest');
+    if(results === null){
+      console.log("couldn't find any contracts");
+      res.send("[]")
+    } else {
+        results.pipe( es.map(function (data,cb) {
+          if (data.name == contractName) {
+            found = true;
+            masterContract = JSON.stringify(data);
+            xabi = data.xabi;
+            cb(null,data);
+          }
+           else cb();
+        }))
 
-  if(results === null){
-    console.log("couldn't find any contracts");
-    res.send("[]")
-  } else {
-      results.pipe( es.map(function (data,cb) {
-        if (data.name == contractName) {
-          found = true;
-          masterContract = JSON.stringify(data);
-          xabi = data.xabi;
-          cb(null,data);
-        }
-         else cb();
-      }))
-
-      .pipe( es.map(function (data, cb) {
-        rp({uri: apiURI + '/eth/v1.2/account?address='+data.address, json: true})
-          .then(function (result) {
-            //console.log("s1: " + JSON.stringify(result))
-            cb(null, result[0].code)
-          })
-          .catch(function (err) {
-            cb(null, err)
-          });
-      }))
-
-      .pipe( es.map(function (data, cb) {
-        rp({uri: apiURI + '/eth/v1.2/account?code='+data, json: true})
-          .then(function (result) {
-            cb(null, result)
-          })
-          .catch(function (err) {
-            console.log("rp failure", err);
-            cb(null, err)
-          });
-      }))
-
-      .pipe( es.map(function (data,cb) {
-        addresses = data.map(function (item) {
-          return item.address;
-        });
-        cb(null,addresses);
-      }))
-
-      .on('data', function(data) {
-        let items = data;
-        let contractData = {};
-
-        //Get initial abi/bin to create first contract
-        for(var prop in masterContract){
-          contractData[prop] = masterContract[prop];
-        }
-        for(var i=0; i < items.length; i++) {
-          const item = items[i];
-          const contractData = JSON.parse(masterContract);
-
-          const contract = Solidity.attach(contractData);
-
-          var promise = Promise.props(contract.state).then(function(sVars) {
-            var reduced = {};
-             reducedStatePropeties.forEach(function(prop) {
-              reduced[prop] = sVars[prop];
+        .pipe( es.map(function (data, cb) {
+          rp({uri: apiURI + '/eth/v1.2/account?address='+data.address, json: true})
+            .then(function (result) {
+              //console.log("s1: " + JSON.stringify(result))
+              cb(null, result[0].code)
+            })
+            .catch(function (err) {
+              cb(null, err)
             });
-            var parsed = traverse(reduced).forEach(function (x) {
-              if (Buffer.isBuffer(x)) {
-                this.update(x.toString());
+        }))
+
+        .pipe( es.map(function (data, cb) {
+          rp({uri: apiURI + '/eth/v1.2/account?code='+data, json: true})
+            .then(function (result) {
+              cb(null, result)
+            })
+            .catch(function (err) {
+              console.log("rp failure", err);
+              cb(null, err)
+            });
+        }))
+
+        .pipe( es.map(function (data,cb) {
+          addresses = data.map(function (item) {
+            return item.address;
+          });
+          cb(null,addresses);
+        }))
+
+        .on('data', function(data) {
+          let items = data;
+          let contractData = {};
+
+          //Get initial abi/bin to create first contract
+          for(var prop in masterContract){
+            contractData[prop] = masterContract[prop];
+          }
+          for(var i=0; i < items.length; i++) {
+            const item = items[i];
+            console.log('address is: ',item);
+            const contractData = JSON.parse(masterContract);
+            contractData.address = item;
+            const contract = Solidity.attach(contractData);
+
+            var promise = Promise.props(contract.state).then(function(sVars) {
+              var reduced = {};
+              if(reducedState) {
+                reducedState.forEach(function(prop) {
+                  reduced[prop] = sVars[prop];
+                });
+              } else {
+                reduced = sVars;
               }
+
+              var parsed = traverse(reduced).forEach(function (x) {
+                if (Buffer.isBuffer(x)) {
+                  this.update(x.toString());
+                }
+              });
+              return parsed;
+            })
+            .catch(function(err) {
+              console.log("contract/state sVars - error: " + err)
             });
-            return parsed;
-          })
-          .catch(function(err) {
-            console.log("contract/state sVars - error: " + err)
-          });
-          promises.push(promise);
-        }
-      })
+            promises.push(promise);
+          }
+        })
 
-      .on('end', function () {
+        .on('end', function () {
 
-        if (!found) {
-          res.send("contract not found");
-        }
-        else {
-          Promise.all(promises).then(function(resp){
-            res.send(resp);
-          });
-        }
-      });
-    }
-});
+          if (!found) {
+            res.send("contract not found");
+          }
+          else {
+            Promise.all(promises).then(function(resp){
+              resolve(resp);
+            });
+          }
+        });
+      }
+  });
+
+}
 
 module.exports = router;
