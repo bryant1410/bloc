@@ -79,7 +79,6 @@ router.get('/:contractName/state/summary', cors(), function (req, res) {
         }
       });
 
-      //For each well name
       wells.forEach(function(item){
         var wellSummary = {};
         wellSummary[item] = {};
