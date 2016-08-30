@@ -59,13 +59,13 @@ router.get('/:contractName/state/summary', cors(), function (req, res) {
     if (well) {
       var wellSummary = {};
       var filtered = resp.filter(function(item) {
-        return item.wellName === well;
+        return item.state.wellName === well;
       });
       filtered.forEach(function(item) {
-        if(wellSummary[item.currentState.key]) {
-          wellSummary[item.currentState.key]++;
+        if(wellSummary[item.state.currentState.key]) {
+          wellSummary[item.state.currentState.key]++;
         } else {
-          wellSummary[item.currentState.key] = 1;
+          wellSummary[item.state.currentState.key] = 1;
         }
       });
       summary.push(wellSummary)
@@ -73,9 +73,10 @@ router.get('/:contractName/state/summary', cors(), function (req, res) {
 
       // Get all well names
       var wells = [];
+      console.log(resp);
       resp.forEach(function(item){
-        if (!wells.includes(item.wellName)) {
-          wells.push(item.wellName);
+        if (!wells.includes(item.state.wellName)) {
+          wells.push(item.state.wellName);
         }
       });
 
@@ -84,11 +85,11 @@ router.get('/:contractName/state/summary', cors(), function (req, res) {
         wellSummary[item] = {};
 
         resp.forEach(function(sample) {
-          if (sample.wellName === item) {
-            if (wellSummary[item][sample.currentState.key]) {
-              wellSummary[item][sample.currentState.key]++;
+          if (sample.state.wellName === item) {
+            if (wellSummary[item][sample.state.currentState.key]) {
+              wellSummary[item][sample.state.currentState.key]++;
             } else {
-              wellSummary[item][sample.currentState.key] = 1;
+              wellSummary[item][sample.state.currentState.key] = 1;
             }
           }
         });
@@ -185,7 +186,10 @@ function getStatesFor(contract, reducedState) {
                   this.update(x.toString());
                 }
               });
-              return parsed;
+              var stateAndAddress = {};
+              stateAndAddress.address = contractData.address;
+              stateAndAddress.state = parsed;
+              return stateAndAddress;
             })
             .catch(function(err) {
               console.log("contract/state sVars - error: " + err)
