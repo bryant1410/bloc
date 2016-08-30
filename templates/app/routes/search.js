@@ -55,6 +55,10 @@ router.get('/:contractName/state/reduced', cors(), function (req, res) {
 router.get('/:contractName/state/summary', cors(), function (req, res) {
   var well = req.query.well;
   getStatesFor(req.params.contractName).then(function(resp){
+    if (resp.length === 0) {
+      res.send(resp);
+      return;
+    }
     var summary = [];
     if (well) {
       var wellSummary = {};
@@ -73,7 +77,6 @@ router.get('/:contractName/state/summary', cors(), function (req, res) {
 
       // Get all well names
       var wells = [];
-      console.log(resp);
       resp.forEach(function(item){
         if (!wells.includes(item.state.wellName)) {
           wells.push(item.state.wellName);
@@ -109,13 +112,12 @@ function getStatesFor(contract, reducedState) {
   var promises = [];
   var masterContract = {};
   var xabi = {};
-
   return new Promise(function (resolve, reject) {
     let results = helper.contractsMetaAddressStream(contractName, 'Latest');
 
     if(results === null){
       console.log("couldn't find any contracts");
-      res.send("[]")
+      resolve([]);
     } else {
         results.pipe( es.map(function (data,cb) {
           if (data.name == contractName) {
@@ -166,7 +168,6 @@ function getStatesFor(contract, reducedState) {
           }
           for(var i=0; i < items.length; i++) {
             const item = items[i];
-            console.log('address is: ',item);
             const contractData = JSON.parse(masterContract);
             contractData.address = item;
             const contract = Solidity.attach(contractData);
@@ -201,7 +202,7 @@ function getStatesFor(contract, reducedState) {
         .on('end', function () {
 
           if (!found) {
-            res.send("contract not found");
+            resolve([]);
           }
           else {
             Promise.all(promises).then(function(resp){
