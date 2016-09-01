@@ -171,30 +171,30 @@ function getStatesFor(contract, reducedState) {
             const contractData = JSON.parse(masterContract);
             contractData.address = item;
             const contract = Solidity.attach(contractData);
-
-            var promise = Promise.props(contract.state).then(function(sVars) {
-              var reduced = {};
-              if(reducedState) {
-                reducedState.forEach(function(prop) {
-                  reduced[prop] = sVars[prop];
-                });
-              } else {
-                reduced = sVars;
-              }
-
-              var parsed = traverse(reduced).forEach(function (x) {
-                if (Buffer.isBuffer(x)) {
-                  this.update(x.toString());
-                }
-              });
-              var stateAndAddress = {};
-              stateAndAddress.address = contractData.address;
-              stateAndAddress.state = parsed;
-              return stateAndAddress;
-            })
-            .catch(function(err) {
-              console.log("contract/state sVars - error: " + err)
-            });
+            var promise = buildContractState(contract, reducedState, 0);
+            // var promise = Promise.props(contract.state).then(function(sVars) {
+            //   var reduced = {};
+            //   if(reducedState) {
+            //     reducedState.forEach(function(prop) {
+            //       reduced[prop] = sVars[prop];
+            //     });
+            //   } else {
+            //     reduced = sVars;
+            //   }
+            //
+            //   var parsed = traverse(reduced).forEach(function (x) {
+            //     if (Buffer.isBuffer(x)) {
+            //       this.update(x.toString());
+            //     }
+            //   });
+            //   var stateAndAddress = {};
+            //   stateAndAddress.address = contractData.address;
+            //   stateAndAddress.state = parsed;
+            //   return stateAndAddress;
+            // })
+            // .catch(function(err) {
+            //   console.log("contract/state sVars - error: " + err)
+            // });
             promises.push(promise);
           }
         })
@@ -207,12 +207,53 @@ function getStatesFor(contract, reducedState) {
           else {
             Promise.all(promises).then(function(resp){
               resolve(resp);
+            }).catch(function(err){
+              reject(err);
             });
           }
         });
       }
   });
 
+}
+
+function buildContractState(contract, reducedState, attempt) {
+
+  return Promise.props(contract.state).then(function(sVars) {
+    var reduced = {};
+
+    if(reducedState) {
+      console.log('here and: ', reducedState);
+      reducedState.forEach(function(prop) {
+        reduced[prop] = sVars[prop];
+      });
+    } else {
+      reduced = sVars;
+    }
+
+    var parsed = traverse(reduced).forEach(function (x) {
+      if (Buffer.isBuffer(x)) {
+        this.update(x.toString());
+      }
+    });
+    var stateAndAddress = {};
+    stateAndAddress.address = contract.address;
+    stateAndAddress.state = parsed;
+    return stateAndAddress;
+  })
+  .catch(function(err) {
+    console.log("contract/state sVars - error: " + err);
+
+      if(attempt < 10) {
+        console.log('attempt: ', attempt);
+
+        return new Promise(function(resolve, reject) {setTimeout(function(){
+             resolve(buildContractState(contract, reducedState, attempt + 1));
+          }, 2000);
+        });
+      }
+
+  });
 }
 
 module.exports = router;
