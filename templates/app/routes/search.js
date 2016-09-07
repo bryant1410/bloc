@@ -38,8 +38,6 @@ router.get('/:contractName/state', cors(), function (req, res) {
   if(typeof(req.query.lookup) !== 'object' && req.query.lookup)
     req.query.lookup = [req.query.lookup]
 
-  console.log("route: " + JSON.stringify(req.query.lookup))
-
   getStatesFor(req.params.contractName, req.query.lookup).then(function(resp){
     res.send(resp);
   });
@@ -126,7 +124,6 @@ function getStatesFor(contract, reducedState) {
         if (data.name == contractName) {
           found = true;
           masterContract = JSON.stringify(data);
-          xabi = data.xabi;
           cb(null,data);
         }
         else cb();
@@ -135,7 +132,6 @@ function getStatesFor(contract, reducedState) {
       .pipe( es.map(function (data, cb) {
         rp({uri: apiURI + '/eth/v1.2/account?address='+data.address, json: true})
           .then(function (result) {
-            //console.log("s1: " + JSON.stringify(result))
             cb(null, result[0].code)
           })
           .catch(function (err) {
@@ -174,12 +170,11 @@ function getStatesFor(contract, reducedState) {
           var payload = {contract:contract, reducedState:reducedState, attempt:0};
 
           var promise = DelayPromise(delay, payload).then(function(payload) {
-
             return buildContractState(payload.contract, payload.reducedState, payload.attempt);
           });
-          delay+= 15;
-
+          delay += 15;
           promises.push(promise);
+
         }
       })
 
@@ -203,32 +198,24 @@ function getStatesFor(contract, reducedState) {
 
 function buildContractState(contract, reducedState, attempt) {
 
-  console.log("This is contract.state: " + JSON.stringify(contract.state))
+  if(reducedState){
+    var tempState = {};
+    reducedState.forEach(function(x){
+      tempState[x] = contract.state[x];
+    })
+    contract.state = tempState;
+  }
+
+  console.log("State length:"  + Object.keys(contract.state).length)
 
   return Promise.props(contract.state).then(function(sVars) {
-    var reduced = {};
 
-    var nCalls = 0;
-
-    console.log("sVars before: " + JSON.stringify(sVars))
-
-    if(reducedState) {
-      reducedState.forEach(function(prop) {
-        reduced[prop] = sVars[prop];
-      });
-    } else {
-      reduced = sVars;
-    }
-
-    console.log("sVars after: " + JSON.stringify(reduced))
-
-    var parsed = traverse(reduced).forEach(function (x) {
-      console.log("Calling: " + nCalls);
-      nCalls = nCalls + 1;
+    var parsed = traverse(sVars).forEach(function (x) {
       if (Buffer.isBuffer(x)) {
         this.update(x.toString());
       }
     });
+
     var stateAndAddress = {};
     stateAndAddress.address = contract.account.address;
     stateAndAddress.state = parsed;
