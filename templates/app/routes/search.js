@@ -14,14 +14,10 @@ var rp = require('request-promise');
 
 require('marko/node-require').install();
 
-var homeTemplate = require('marko').load(require.resolve('../components/home/home.marko'));
-var contractTemplate = require('marko').load(require.resolve('../components/contracts/template.marko'));
-
 var yaml = require('js-yaml');
 var fs = require('fs');
 var config = yaml.safeLoad(fs.readFileSync('config.yaml'));
 var apiURI = config.apiURL;
-
 
 /* accept header used */
 router.get('/:contractName', cors(), function (req, res) {
@@ -39,17 +35,25 @@ router.get('/:contractName', cors(), function (req, res) {
 });
 
 router.get('/:contractName/state', cors(), function (req, res) {
-  getStatesFor(req.params.contractName).then(function(resp){
+  if(typeof(req.query.lookup) !== 'object' && req.query.lookup)
+    req.query.lookup = [req.query.lookup]
+
+  console.log("route: " + JSON.stringify(req.query.lookup))
+
+  getStatesFor(req.params.contractName, req.query.lookup).then(function(resp){
     res.send(resp);
   });
 });
 
+// TODO: deprecate this function
+// it is now equivalent to 
+// `/:contractName/state?lookup=currentVendor&lookup=sampleType...`
 router.get('/:contractName/state/reduced', cors(), function (req, res) {
-  const reducedStatePropeties = ['currentVendor', 'sampleType', 'currentState',
+  var reducedStatePropeties = ['currentVendor', 'sampleType', 'currentState',
     'currentLocationType','buid', 'wellName'];
-    getStatesFor(req.params.contractName, reducedStatePropeties).then(function(resp){
-      res.send(resp);
-    });
+  getStatesFor(req.params.contractName, reducedStatePropeties).then(function(resp){
+    res.send(resp);
+  });
 });
 
 router.get('/:contractName/state/summary', cors(), function (req, res) {
@@ -104,106 +108,111 @@ router.get('/:contractName/state/summary', cors(), function (req, res) {
 });
 
 function getStatesFor(contract, reducedState) {
+
   var contractName = contract;
   var found = false;
 
   var addresses;
-  var states = {};
   var promises = [];
   var masterContract = {};
-  var xabi = {};
   return new Promise(function (resolve, reject) {
-    let results = helper.contractsMetaAddressStream(contractName, 'Latest');
+    var results = helper.contractsMetaAddressStream(contractName, 'Latest');
 
     if(results === null){
       console.log("couldn't find any contracts");
       resolve([]);
     } else {
-        results.pipe( es.map(function (data,cb) {
-          if (data.name == contractName) {
-            found = true;
-            masterContract = JSON.stringify(data);
-            xabi = data.xabi;
-            cb(null,data);
-          }
-           else cb();
-        }))
+      results.pipe( es.map(function (data,cb) {
+        if (data.name == contractName) {
+          found = true;
+          masterContract = JSON.stringify(data);
+          xabi = data.xabi;
+          cb(null,data);
+        }
+        else cb();
+      }))
 
-        .pipe( es.map(function (data, cb) {
-          rp({uri: apiURI + '/eth/v1.2/account?address='+data.address, json: true})
-            .then(function (result) {
-              //console.log("s1: " + JSON.stringify(result))
-              cb(null, result[0].code)
-            })
-            .catch(function (err) {
-              cb(null, err)
-            });
-        }))
-
-        .pipe( es.map(function (data, cb) {
-          rp({uri: apiURI + '/eth/v1.2/account?code='+data, json: true})
-            .then(function (result) {
-              cb(null, result)
-            })
-            .catch(function (err) {
-              console.log("rp failure", err);
-              cb(null, err)
-            });
-        }))
-
-        .pipe( es.map(function (data,cb) {
-          addresses = data.map(function (item) {
-            return item.address;
+      .pipe( es.map(function (data, cb) {
+        rp({uri: apiURI + '/eth/v1.2/account?address='+data.address, json: true})
+          .then(function (result) {
+            //console.log("s1: " + JSON.stringify(result))
+            cb(null, result[0].code)
+          })
+          .catch(function (err) {
+            cb(null, err)
           });
-          cb(null,addresses);
-        }))
+      }))
 
-        .on('data', function(data) {
-          let items = data;
+      .pipe( es.map(function (data, cb) {
+        rp({uri: apiURI + '/eth/v1.2/account?code='+data, json: true})
+          .then(function (result) {
+            cb(null, result)
+          })
+          .catch(function (err) {
+            console.log("rp failure", err);
+            cb(null, err)
+          });
+      }))
 
-          var delay = 0;
-          for(var i=0; i < items.length; i++) {
-            const item = items[i];
-            const contractData = JSON.parse(masterContract);
-            contractData.address = item;
-            const contract = Solidity.attach(contractData);
-
-            var payload = {contract:contract, reducedState:reducedState, attempt:0};
-
-            var promise = DelayPromise(delay, payload).then(function(payload) {
-
-              return buildContractState(payload.contract, payload.reducedState, payload.attempt);
-            });
-            delay+= 15;
-
-            promises.push(promise);
-          }
-        })
-
-        .on('end', function () {
-
-          if (!found) {
-            resolve([]);
-          }
-          else {
-            Promise.all(promises).then(function(resp){
-              resolve(resp);
-            }).catch(function(err){
-              reject(err);
-            });
-          }
+      .pipe( es.map(function (data,cb) {
+        addresses = data.map(function (item) {
+          return item.address;
         });
-      }
+        cb(null,addresses);
+      }))
+
+      .on('data', function(data) {
+        var items = data;
+
+        var delay = 0;
+        for(var i=0; i < items.length; i++) {
+          var item = items[i];
+          var contractData = JSON.parse(masterContract);
+          contractData.address = item;
+          var contract = Solidity.attach(contractData);
+
+          var payload = {contract:contract, reducedState:reducedState, attempt:0};
+
+          var promise = DelayPromise(delay, payload).then(function(payload) {
+
+            return buildContractState(payload.contract, payload.reducedState, payload.attempt);
+          });
+          delay+= 15;
+
+          promises.push(promise);
+        }
+      })
+
+      .on('end', function () {
+
+        if (!found) {
+          resolve([]);
+        }
+        else {
+          Promise.all(promises).then(function(resp){
+            resolve(resp);
+          }).catch(function(err){
+            reject(err);
+          });
+        }
+      });
+    }
   });
 
 }
 
 function buildContractState(contract, reducedState, attempt) {
+
+  console.log("This is contract.state: " + JSON.stringify(contract.state))
+
   return Promise.props(contract.state).then(function(sVars) {
     var reduced = {};
 
+    var nCalls = 0;
+
+    console.log("sVars before: " + JSON.stringify(sVars))
+
     if(reducedState) {
-      // console.log('here and: ', reducedState);
       reducedState.forEach(function(prop) {
         reduced[prop] = sVars[prop];
       });
@@ -211,7 +220,11 @@ function buildContractState(contract, reducedState, attempt) {
       reduced = sVars;
     }
 
+    console.log("sVars after: " + JSON.stringify(reduced))
+
     var parsed = traverse(reduced).forEach(function (x) {
+      console.log("Calling: " + nCalls);
+      nCalls = nCalls + 1;
       if (Buffer.isBuffer(x)) {
         this.update(x.toString());
       }
@@ -223,24 +236,23 @@ function buildContractState(contract, reducedState, attempt) {
   })
   .catch(function(err) {
     console.log("contract/state sVars - error: " + err);
-
-      if(attempt < 10) {
-        console.log('attempt: ', attempt);
-
-        return new Promise(function(resolve, reject) {setTimeout(function(){
-             resolve(buildContractState(contract, reducedState, attempt + 1));
-          }, 100);
-        });
-      }
-
+    if(attempt < 10) {
+      console.log('attempt: ', attempt);
+      return new Promise(function(resolve, _) {
+        setTimeout(function(){
+          resolve(buildContractState(contract, reducedState, attempt + 1));
+        }, 100);
+      });
+    }
   });
 }
 
 function DelayPromise(delay, payload) {
-     return new Promise(function(resolve, reject) {
-       setTimeout(function() {
-         resolve(payload);
-       }, delay);
-     });
-   }
+  return new Promise(function(resolve, _) {
+    setTimeout(function() {
+      resolve(payload);
+    }, delay);
+  });
+}
+
 module.exports = router;
