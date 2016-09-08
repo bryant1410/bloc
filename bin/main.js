@@ -165,13 +165,10 @@ function main (){
         solSrcFiles = [fname];
       }
       else {
-        console.log("Compiling all contracts no longer supported!");
-        break;
-
-          // solSrcFiles = fs.readdirSync(solSrcDir).
-          //   filter(function(filename) {
-          //     return path.extname(filename) === '.sol';
-          //   })
+        solSrcFiles = fs.readdirSync(solSrcDir).
+          filter(function(filename) {
+            return path.extname(filename) === '.sol';
+          })
       }
 
       Promise.all(solSrcFiles).

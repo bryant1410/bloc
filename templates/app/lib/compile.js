@@ -50,6 +50,7 @@ function compileSol(solSrc) {
   }).
   catch(function(e) {
     console.log("compile failed with error message: " + e);
+    throw(e);
   });
 }
 
