@@ -44,7 +44,7 @@ router.get('/:contractName/state', cors(), function (req, res) {
 });
 
 // TODO: deprecate this function
-// it is now equivalent to 
+// it is now equivalent to
 // `/:contractName/state?lookup=currentVendor&lookup=sampleType...`
 router.get('/:contractName/state/reduced', cors(), function (req, res) {
   var reducedStatePropeties = ['currentVendor', 'sampleType', 'currentState',
@@ -132,6 +132,7 @@ function getStatesFor(contract, reducedState) {
       .pipe( es.map(function (data, cb) {
         rp({uri: apiURI + '/eth/v1.2/account?address='+data.address, json: true})
           .then(function (result) {
+            console.log('code', result[0].code);
             cb(null, result[0].code)
           })
           .catch(function (err) {
@@ -140,9 +141,16 @@ function getStatesFor(contract, reducedState) {
       }))
 
       .pipe( es.map(function (data, cb) {
-        rp({uri: apiURI + '/eth/v1.2/account?code='+data, json: true})
+        var options = {
+          method: 'POST',
+          uri: apiURI + '/eth/v1.2/account/code' ,
+          form: {
+              code: data
+          },
+        }
+        rp(options)
           .then(function (result) {
-            cb(null, result)
+            cb(null, JSON.parse(result));
           })
           .catch(function (err) {
             console.log("rp failure", err);
@@ -151,6 +159,7 @@ function getStatesFor(contract, reducedState) {
       }))
 
       .pipe( es.map(function (data,cb) {
+        console.log('data',data)
         addresses = data.map(function (item) {
           return item.address;
         });
