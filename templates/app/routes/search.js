@@ -215,8 +215,6 @@ function buildContractState(contract, reducedState, attempt) {
     contract.state = tempState;
   }
 
-  console.log("State length:"  + Object.keys(contract.state).length)
-
   return Promise.props(contract.state).then(function(sVars) {
 
     var parsed = traverse(sVars).forEach(function (x) {
