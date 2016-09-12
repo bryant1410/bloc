@@ -49,11 +49,20 @@ router.get('/:contractName/state', cors(), function (req, res) {
 // it is now equivalent to
 // `/:contractName/state?lookup=currentVendor&lookup=sampleType...`
 router.get('/:contractName/state/reduced', cors(), function (req, res) {
-  var reducedStatePropeties = ['currentVendor', 'sampleType', 'currentState',
-    'currentLocationType','buid', 'wellName'];
-  // if (istypeof(req.query.props) === '')
-  // var reducedStatePropeties = req.query.props;
-  getStatesFor(req.params.contractName, reducedStatePropeties).then(function(resp){
+  if (typeof(req.query.props) === 'undefined' ) {
+    res.status(400).send('Bad Request: No `props` parameter in query string')
+    return;
+  }
+
+  var props;
+
+  if (typeof(req.query.props) === 'string' ) {
+    props = req.query.props.split();
+  } else {
+    props = req.query.props;
+  }
+
+  getStatesFor(req.params.contractName, props).then(function(resp){
     res.send(resp);
   });
 });
@@ -110,7 +119,6 @@ router.get('/:contractName/state/summary', cors(), function (req, res) {
 });
 
 function getStatesFor(contract, reducedState) {
-
   var contractName = contract;
   var found = false;
 
@@ -215,7 +223,6 @@ function getStatesFor(contract, reducedState) {
 }
 
 function buildContractState(contract, reducedState, attempt) {
-
   if(reducedState){
     var tempState = {};
     reducedState.forEach(function(x){
