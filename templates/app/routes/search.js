@@ -127,6 +127,7 @@ function getStatesFor(contract, reducedState) {
         if (data.name === contractName) {
           if(!re.test(data.address)) {
             resolve('[]');
+            return;
           }
           found = true;
           masterContract = JSON.stringify(data);
