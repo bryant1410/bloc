@@ -19,6 +19,8 @@ var fs = require('fs');
 var config = yaml.safeLoad(fs.readFileSync('config.yaml'));
 var apiURI = config.apiURL;
 
+var strregex = "^[0-9a-fa-f]+$";
+var re = new RegExp(strregex);
 /* accept header used */
 router.get('/:contractName', cors(), function (req, res) {
   var contractName = req.params.contractName;
@@ -49,6 +51,8 @@ router.get('/:contractName/state', cors(), function (req, res) {
 router.get('/:contractName/state/reduced', cors(), function (req, res) {
   var reducedStatePropeties = ['currentVendor', 'sampleType', 'currentState',
     'currentLocationType','buid', 'wellName'];
+  // if (istypeof(req.query.props) === '')
+  // var reducedStatePropeties = req.query.props;
   getStatesFor(req.params.contractName, reducedStatePropeties).then(function(resp){
     res.send(resp);
   });
@@ -115,13 +119,15 @@ function getStatesFor(contract, reducedState) {
   var masterContract = {};
   return new Promise(function (resolve, reject) {
     var results = helper.contractsMetaAddressStream(contractName, 'Latest');
-
     if(results === null){
       console.log("couldn't find any contracts");
       resolve([]);
     } else {
       results.pipe( es.map(function (data,cb) {
-        if (data.name == contractName) {
+        if (data.name === contractName) {
+          if(!re.test(data.address)) {
+            resolve('[]');
+          }
           found = true;
           masterContract = JSON.stringify(data);
           cb(null,data);
@@ -141,6 +147,7 @@ function getStatesFor(contract, reducedState) {
       }))
 
       .pipe( es.map(function (data, cb) {
+        // resolve(data);
         var options = {
           method: 'POST',
           uri: apiURI + '/eth/v1.2/account/code' ,
@@ -150,6 +157,7 @@ function getStatesFor(contract, reducedState) {
         }
         rp(options)
           .then(function (result) {
+            console.log(result);
             cb(null, JSON.parse(result));
           })
           .catch(function (err) {
@@ -159,7 +167,7 @@ function getStatesFor(contract, reducedState) {
       }))
 
       .pipe( es.map(function (data,cb) {
-        console.log('data',data)
+        // console.log('data',data)
         addresses = data.map(function (item) {
           return item.address;
         });
@@ -214,6 +222,8 @@ function buildContractState(contract, reducedState, attempt) {
     })
     contract.state = tempState;
   }
+
+  // console.log("State length:"  + Object.keys(contract.state).length)
 
   return Promise.props(contract.state).then(function(sVars) {
 
