@@ -147,7 +147,6 @@ function getStatesFor(contract, reducedState) {
       .pipe( es.map(function (data, cb) {
         rp({uri: apiURI + '/eth/v1.2/account?address='+data.address, json: true})
           .then(function (result) {
-            console.log('code', result[0].code);
             cb(null, result[0].code)
           })
           .catch(function (err) {
