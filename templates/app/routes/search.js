@@ -247,12 +247,12 @@ function buildContractState(contract, reducedState, attempt) {
   })
   .catch(function(err) {
     console.log("contract/state sVars - error: " + err);
-    if(attempt < 10) {
+    if(attempt < 30) {
       console.log('attempt: ', attempt);
       return new Promise(function(resolve, _) {
         setTimeout(function(){
           resolve(buildContractState(contract, reducedState, attempt + 1));
-        }, 100);
+        }, 200);
       });
     }
   });
