@@ -67,6 +67,7 @@ router.get('/:contractName/state/reduced', cors(), function (req, res) {
   });
 });
 
+// TODO: re-write for req.query.lookup
 router.get('/:contractName/state/summary', cors(), function (req, res) {
   var well = req.query.well;
   getStatesFor(req.params.contractName).then(function(resp){
@@ -160,7 +161,7 @@ function getStatesFor(contract, reducedState) {
           method: 'POST',
           uri: apiURI + '/eth/v1.2/account/code' ,
           form: {
-              code: data
+            code: data
           },
         }
         rp(options)

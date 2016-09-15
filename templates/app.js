@@ -26,8 +26,10 @@ var _ = require('underscore');
 
 app.use(logger('dev'));
 
-app.use(bodyParser.json()); 
-app.use(bodyParser.urlencoded({ extended: true })); 
+console.log("Body limit: 500mb")
+app.use(bodyParser.json({limit: '500mb'}));
+app.use(bodyParser.urlencoded({limit: '500mb', extended: true }));
+
 app.use(cookieParser());
 
 app.use(session({resave: true, 
@@ -43,6 +45,7 @@ app.use('/search', search);
 
 app.use('/static', express.static('app/static'));
 app.use('/images', express.static('images'));
+
 
 var port = process.env.PORT || 8000;
 var host = process.env.HOST || '0.0.0.0';
