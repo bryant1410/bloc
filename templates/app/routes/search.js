@@ -19,8 +19,6 @@ var fs = require('fs');
 var config = yaml.safeLoad(fs.readFileSync('config.yaml'));
 var apiURI = config.apiURL;
 
-var strregex = "^[0-9a-fa-f]+$";
-var re = new RegExp(strregex);
 /* accept header used */
 router.get('/:contractName', cors(), function (req, res) {
   var contractName = req.params.contractName;
@@ -134,25 +132,12 @@ function getStatesFor(contract, reducedState) {
     } else {
       results.pipe( es.map(function (data,cb) {
         if (data.name === contractName) {
-          if(!re.test(data.address)) {
-            resolve('[]');
-            return;
-          }
           found = true;
+          console.log(data);
           masterContract = JSON.stringify(data);
-          cb(null,data);
+          cb(null,data["bin-runtime"]);
         }
         else cb();
-      }))
-
-      .pipe( es.map(function (data, cb) {
-        rp({uri: apiURI + '/eth/v1.2/account?address='+data.address, json: true})
-          .then(function (result) {
-            cb(null, result[0].code)
-          })
-          .catch(function (err) {
-            cb(null, err)
-          });
       }))
 
       .pipe( es.map(function (data, cb) {
