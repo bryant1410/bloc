@@ -19,15 +19,15 @@ var globalPassword;
 function userChangeHandler(user) {
   console.log('user is now: ' + user);
   globalUser = user;
-  
-  $.getJSON( "/users/" + user, function( data ) {
+
+  $.getJSON( "../../users/" + user, function( data ) {
       $('#globalKeystoreId').empty();
-			 
+
       $.each( data, function( key, val ) {
           $('#globalKeystoreId')
               .append($('<option>', { key : val })
 	      .text(val));
-				      
+
       });
 
       keyChangeHandler($('#globalKeystoreId').val());
@@ -41,14 +41,14 @@ function keyChangeHandler(address) {
 }
 
 function loadHandler() {
-   $.getJSON( "/users/", function( data ) {
+   $.getJSON( "../../users/", function( data ) {
       $.each( data, function( key, val ) {
           console.log("iterating over data, key: " + key + " val: " + val);
 
           $('#userId')
               .append($('<option>', { key : val })
 	      .text(val));
-			 
+
       });
 
       userChangeHandler(data[0]);
@@ -60,4 +60,3 @@ $( document ).ready( function () {
 });
 
 </script>
-  
