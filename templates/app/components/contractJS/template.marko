@@ -30,7 +30,7 @@ function callFunc(funcName) {
     });
 
     var contractAddress = contract.account.address.toString();
-    
+
     console.log('args: ' + JSON.stringify(args));
     console.log('contract name: ' + contract.name);
     console.log('contract address: ' + contractAddress);
@@ -44,14 +44,14 @@ function callFunc(funcName) {
     };
 
     console.log("invokeContractObj: " + JSON.stringify(invokeContractObj));
-    
+
     $.ajax({
         method: "POST",
         timeout: "60000",
         headers: {
             "content-type": "application/json"
 	    },
-        url: "/users/" + globalUser + "/" + globalAddress + "/contract/" + contract.name + "/" + contractAddress + "/call",
+        url: "../../users/" + globalUser + "/" + globalAddress + "/contract/" + contract.name + "/" + contractAddress + "/call",
         data: JSON.stringify(invokeContractObj),
       })
       .done(function (res) {
@@ -72,9 +72,9 @@ function storageAfterTX(result) {
             }
             afterTXstring += "  " + name + " = " + svar + "\n";
         };
-      return afterTXstring;  
+      return afterTXstring;
     });
-} 
+}
 
 function contractBalanceAfterTX(txString) {
     return contract.account.balance.then(function(bal) {
@@ -98,17 +98,17 @@ function resetTextArea(txString)  {
 
 function afterTX(result) {
     storageAfterTX(result)
-      .then(function (txStr) { 
+      .then(function (txStr) {
           return contractBalanceAfterTX(txStr);
         })
       .then(function (txStr) {
 	  return userBalanceAfterTX(txStr);
         })
-      .then(function (txStr) { 
+      .then(function (txStr) {
           resetTextArea(txStr);
         })
       .catch(function (err) {
-          console.log("error caught: " + err); 
+          console.log("error caught: " + err);
       });
-} 
+}
 </script>
