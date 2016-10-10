@@ -133,7 +133,6 @@ function getStatesFor(contract, reducedState) {
       results.pipe( es.map(function (data,cb) {
         if (data.name === contractName) {
           found = true;
-          console.log(data);
           masterContract = JSON.stringify(data);
           cb(null,data["bin-runtime"]);
         }
@@ -151,7 +150,7 @@ function getStatesFor(contract, reducedState) {
         }
         rp(options)
           .then(function (result) {
-            console.log(result);
+            // console.log(result);
             cb(null, JSON.parse(result));
           })
           .catch(function (err) {
@@ -237,7 +236,7 @@ function buildContractState(contract, reducedState, attempt) {
       console.log('attempt: ', attempt);
       return new Promise(function(resolve, _) {
         setTimeout(function(){
-          resolve(buildContractState(contract, reducedState, attempt + 1));
+          resolve(buildContractState(Solidity.attach(contract.detach()), reducedState, attempt + 1));
         }, 200);
       });
     }
