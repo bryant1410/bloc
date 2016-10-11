@@ -1,14 +1,12 @@
 #!/bin/bash
 
-submoddir=${submoddir:-$(pwd)}
-builddir=$submoddir/pkg/build
 blocdir=$builddir/usr/lib/strato
 blochome=$blocdir/bloc-server
 projdir=$builddir/var/run/strato
 projhome=$projdir/bloc-server
 
 mkdir -p $blocdir
-cp -a $submoddir $blochome
+cp -a $submod $blochome
 cd $blochome
 rm -rf .git{,attributes,ignore}
 npm install --quiet
