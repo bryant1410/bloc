@@ -1,12 +1,16 @@
 #!/bin/bash
 
+set -e
+
 blocdir=$builddir/usr/lib/strato
 blochome=$blocdir/bloc-server
 projdir=$builddir/var/run/strato
 projhome=$projdir/bloc-server
 
-mkdir -p $blocdir
-cp -a $submod $blochome
+npm set progress=false
+
+mkdir -p $blochome
+find -maxdepth 1 -mindepth 1 -name pkg -prune -o -execdir cp -a -t $blochome '{}' +
 cd $blochome
 rm -rf .git{,attributes,ignore}
 npm install --quiet
