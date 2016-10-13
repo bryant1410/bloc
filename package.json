@@ -1,6 +1,6 @@
 {
   "name": "blockapps-bloc",
-  "version": "1.2.1-rai-stones",
+  "version": "1.2.1-vm_publish",
   "description": "A minimal build and deploy tool for the BlockApps API",
   "main": "bin/main.js",
   "bin": {
