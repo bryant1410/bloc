@@ -10,8 +10,9 @@
   "author": "{{developer}}",
   "license": "ISC",
   "dependencies": {
-    "bower" : "^1.7.7", 
+    "bower" : "^1.7.7",
     "blockapps-js": "blockapps/blockapps-js#127632337_vm_publish",
+
     "bluebird": "^3.0.5",
     "body-parser": "^1.14.1",
     "chalk": "^1.1.3",
@@ -19,6 +20,7 @@
     "cors": "^2.7.1",
     "deepmerge": "^0.2.10",
     "del": "^2.2.0",
+    "dnscache": "0.0.4",
     "eth-lightwallet": "kejace/eth-lightwallet",
     "event-stream": "^3.3.2",
     "express": "^4.13.3",

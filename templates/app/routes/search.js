@@ -11,6 +11,7 @@ var cors = require('cors');
 var traverse = require('traverse');
 var es = require('event-stream')
 var rp = require('request-promise');
+var dnscache = require('dnscache');
 
 require('marko/node-require').install();
 
@@ -18,6 +19,13 @@ var yaml = require('js-yaml');
 var fs = require('fs');
 var config = yaml.safeLoad(fs.readFileSync('config.yaml'));
 var apiURI = config.apiURL;
+
+/* use dnscache during search */
+dnscache({
+  "enable" : true,
+  "ttl" : 300,
+  "cachesize" : 1000
+});
 
 /* accept header used */
 router.get('/:contractName', cors(), function (req, res) {
@@ -44,16 +52,28 @@ router.get('/:contractName/state', cors(), function (req, res) {
 });
 
 // TODO: deprecate this function
-// it is now equivalent to 
+// it is now equivalent to
 // `/:contractName/state?lookup=currentVendor&lookup=sampleType...`
 router.get('/:contractName/state/reduced', cors(), function (req, res) {
-  var reducedStatePropeties = ['currentVendor', 'sampleType', 'currentState',
-    'currentLocationType','buid', 'wellName'];
-  getStatesFor(req.params.contractName, reducedStatePropeties).then(function(resp){
+  if (typeof(req.query.props) === 'undefined' ) {
+    res.status(400).send('Bad Request: No `props` parameter in query string')
+    return;
+  }
+
+  var props;
+
+  if (typeof(req.query.props) === 'string' ) {
+    props = req.query.props.split();
+  } else {
+    props = req.query.props;
+  }
+
+  getStatesFor(req.params.contractName, props).then(function(resp){
     res.send(resp);
   });
 });
 
+// TODO: re-write for req.query.lookup
 router.get('/:contractName/state/summary', cors(), function (req, res) {
   var well = req.query.well;
   getStatesFor(req.params.contractName).then(function(resp){
@@ -107,42 +127,42 @@ router.get('/:contractName/state/summary', cors(), function (req, res) {
 
 function getStatesFor(contract, reducedState) {
 
+
   var contractName = contract;
   var found = false;
 
   var addresses;
-  var promises = [];
+  var promise;
   var masterContract = {};
   return new Promise(function (resolve, reject) {
     var results = helper.contractsMetaAddressStream(contractName, 'Latest');
-
     if(results === null){
       console.log("couldn't find any contracts");
       resolve([]);
     } else {
       results.pipe( es.map(function (data,cb) {
-        if (data.name == contractName) {
+        if (data.name === contractName) {
           found = true;
+          // console.log(data);
           masterContract = JSON.stringify(data);
-          cb(null,data);
+          cb(null,data["codeHash"]);
         }
         else cb();
       }))
 
       .pipe( es.map(function (data, cb) {
-        rp({uri: apiURI + '/eth/v1.2/account?address='+data.address, json: true})
+        // resolve(data);
+        var options = {
+          method: 'GET',
+          uri: apiURI + '/eth/v1.2/account?codeHash=' + data ,
+          // form: {
+          //   code: data
+          // },
+        }
+        rp(options)
           .then(function (result) {
-            cb(null, result[0].code)
-          })
-          .catch(function (err) {
-            cb(null, err)
-          });
-      }))
-
-      .pipe( es.map(function (data, cb) {
-        rp({uri: apiURI + '/eth/v1.2/account?code='+data, json: true})
-          .then(function (result) {
-            cb(null, result)
+            // console.log('obtained result from /eth/v1.2/account/codeHash');
+            cb(null, JSON.parse(result));
           })
           .catch(function (err) {
             console.log("rp failure", err);
@@ -151,31 +171,67 @@ function getStatesFor(contract, reducedState) {
       }))
 
       .pipe( es.map(function (data,cb) {
+        // console.log('data',data)
         addresses = data.map(function (item) {
           return item.address;
         });
+        // console.log('addresses', addresses);
         cb(null,addresses);
       }))
 
       .on('data', function(data) {
         var items = data;
-
-        var delay = 0;
-        for(var i=0; i < items.length; i++) {
+        var payloads = [];
+        // var delay = 0;
+        for(var i=0; i < items.length; i++) { //items.length
           var item = items[i];
           var contractData = JSON.parse(masterContract);
           contractData.address = item;
           var contract = Solidity.attach(contractData);
 
-          var payload = {contract:contract, reducedState:reducedState, attempt:0};
+          payloads.push({contract:contract, reducedState:reducedState, attempt:0});
 
-          var promise = DelayPromise(delay, payload).then(function(payload) {
-            return buildContractState(payload.contract, payload.reducedState, payload.attempt);
-          });
-          delay += 15;
-          promises.push(promise);
+          // var promise = DelayPromise(delay, payload).then(function(payload) {
+          //   return buildContractState(payload.contract, payload.reducedState, payload.attempt);
+          // });
+          // delay += 15;
+          // promises.push(promise);
 
         }
+
+        var maxRequests = 200;
+        var contractVars= JSON.parse(masterContract).xabi.vars;
+
+        //if contract has no state variables
+        if(!contractVars){
+          // set numVars to 1 to set burstSize == maxRequests
+          numVars = 1;
+        } else {
+          var numVars = Object.keys(contractVars).length;
+        }
+        var burstSize;
+
+        if(reducedState) {
+          numVars = reducedState.length;
+        }
+
+        if (maxRequests > numVars) {
+          burstSize = Math.floor(maxRequests / numVars);
+        } else {
+          burstSize = 1;
+        }
+
+        // for(var i=0; i< 10000000; i++){
+        //   if(i==0) {
+        //     console.log('length is :', Object.keys(contractVars).length);
+        //   }
+        // }
+        // var burstSize = 1000;
+        promise = processArray(payloads,burstSize).then(function(results){
+          // console.log([].concat.apply([], results));
+          return [].concat.apply([], results);
+        });
+
       })
 
       .on('end', function () {
@@ -184,7 +240,13 @@ function getStatesFor(contract, reducedState) {
           resolve([]);
         }
         else {
-          Promise.all(promises).then(function(resp){
+          // Promise.all(promises).then(function(resp){
+          //   resolve(resp);
+          // }).catch(function(err){
+          //   reject(err);
+          // });
+          promise.then(function(resp){
+
             resolve(resp);
           }).catch(function(err){
             reject(err);
@@ -197,7 +259,6 @@ function getStatesFor(contract, reducedState) {
 }
 
 function buildContractState(contract, reducedState, attempt) {
-
   if(reducedState){
     var tempState = {};
     reducedState.forEach(function(x){
@@ -208,7 +269,10 @@ function buildContractState(contract, reducedState, attempt) {
 
   return Promise.props(contract.state).then(function(sVars) {
 
+    // console.log("finished calling blockapps-js: " + globalVar + " address is: " + contract.account.address)
+    // globalVar += 1;
     var parsed = traverse(sVars).forEach(function (x) {
+
       if (Buffer.isBuffer(x)) {
         this.update(x.toString());
       }
@@ -221,23 +285,79 @@ function buildContractState(contract, reducedState, attempt) {
   })
   .catch(function(err) {
     console.log("contract/state sVars - error: " + err);
-    if(attempt < 10) {
+    if(attempt < 30) {
       console.log('attempt: ', attempt);
       return new Promise(function(resolve, _) {
         setTimeout(function(){
-          resolve(buildContractState(contract, reducedState, attempt + 1));
-        }, 100);
+          console.log("re-Attempting with address: " + contract.account.address)
+          resolve(buildContractState(Solidity.attach(contract.detach()), reducedState, attempt + 1));
+        }, 500);
       });
     }
   });
 }
 
-function DelayPromise(delay, payload) {
-  return new Promise(function(resolve, _) {
-    setTimeout(function() {
-      resolve(payload);
-    }, delay);
+// function DelayPromise(delay, payload) {
+//   return new Promise(function(resolve, _) {
+//     setTimeout(function() {
+//       resolve(payload);
+//     }, delay);
+//   });
+// }
+
+function processBursts(bursts, results) {
+  return new Promise(function(resolve){
+    // console.log(bursts);
+    if(bursts.length == 0) {
+      resolve(results);
+      return;
+    }
+
+    var burst = bursts.pop();
+
+    processBurst(burst, results).then(function(result){
+      // console.log('finished burst, beginning next burst');
+      results.push(result);
+      resolve(processBursts(bursts, results));
+    });
   });
 }
+
+function processBurst(burst) {
+  var promises = [];
+  // console.log('processing burst');
+  burst.forEach(function(item){
+    promises.push(processItem(item));
+  });
+
+  return Promise.all(promises,function(results){
+    // console.log('Finished processing burst');
+    return results;
+  });
+}
+
+function processItem(payload) {
+  return buildContractState(payload.contract, payload.reducedState, payload.attempt);
+}
+
+function processArray(array, burstSize) {
+  var bursts = [];
+
+  for (var i = 0; i < array.length; i+=burstSize) {
+    var burst = [];
+    for (var j = 0; j < burstSize; j++) {
+      if(array[i+j]) {
+        burst.push(array[i+j]);
+      }
+      if(j > array.length) {
+        break;
+      }
+    }
+    bursts.push(burst);
+  }
+  // console.log('processing all bursts');
+  return processBursts(bursts, []);
+}
+
 
 module.exports = router;
