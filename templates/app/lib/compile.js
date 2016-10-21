@@ -4,11 +4,8 @@ var rp = require('request-promise');
 var path = require('path');
 var mkdirp = require('mkdirp');
 var chalk = require('chalk');
-var yaml = require('js-yaml');
+var yamlConfig = require('./yaml-config');
 var fs = require('fs');
-var config = yaml.safeLoad(fs.readFileSync('config.yaml'));
-var apiURI = config.apiURL;
-
 
 function compileSol(solSrc) {
   return Solidity(solSrc).then(function(solObj) {
@@ -51,14 +48,14 @@ function compileSol(solSrc) {
         console.log(chalk.green("wrote: ") + multiPath);
         var options = {
           method: 'POST',
-          uri: apiURI + ':3333',
+          uri: yamlConfig.readYaml('config.yaml').apiURL + ':3333',
           body: contract.detach(),
           headers: {
             'Content-Type': 'application/json'
           }
         };
           // json: true
-        rp(options).then(function(result){
+        rp(options).then(function(_){
           console.log('successfully created table in cirrus');
         })
         .catch(function(err){
