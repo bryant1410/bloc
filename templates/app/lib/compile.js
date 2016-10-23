@@ -45,6 +45,7 @@ function compileSol(solSrc) {
 
         console.log("writing " + contractName + " to " + multiPath)
         fs.writeFileSync(multiPath, contract.detach());
+
         console.log(chalk.green("wrote: ") + multiPath);
         var options = {
           method: 'POST',
@@ -56,10 +57,10 @@ function compileSol(solSrc) {
         };
           // json: true
         rp(options).then(function(_){
-          console.log('successfully created table in cirrus');
+          console.log('Successfully created table in cirrus for contract ' + contractName);
         })
         .catch(function(err){
-          console.log('Error Creating table in Cirrus: ', err);
+          console.log('Error Creating table in cirrus: ', err);
         });
       }
     });
