@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "bignumber.js": "^2.0.7",
-    "blockapps-js": "blockapps/blockapps-js#127632337_vm_publish",
+    "blockapps-js": "blockapps/blockapps-js#132922485_transaction-batching",
     "bluebird": "^2.9.34",
     "body-parser": "^1.14.1",
     "chalk": "^1.1.3",
