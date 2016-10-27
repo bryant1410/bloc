@@ -4,7 +4,11 @@ var express = require('express');
 var helper = require('../lib/contract-helpers.js');
 var router = express.Router();
 var Promise = require('bluebird');
-var Solidity = require('blockapps-js').Solidity;
+
+var api = require('blockapps-js');
+var Solidity = api.Solidity;
+api.ethbase.Transaction.gasPrice = 1;
+api.ethbase.Transaction.gasPrice = 3141592;
 
 var cors = require('cors');
 var traverse = require('traverse');

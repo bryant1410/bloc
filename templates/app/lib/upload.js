@@ -2,7 +2,12 @@
 
 var Promise = require('bluebird');
 var fs = Promise.promisifyAll(require('fs'));
-var Solidity = require('blockapps-js').Solidity;
+
+var api = require('blockapps-js');
+api.ethbase.Transaction.gasPrice = 1;
+api.ethbase.Transaction.gasPrice = 3141592;
+
+var Solidity = api.Solidity;
 
 var path = require('path');
 // var contractHelpers = require('./contract-helpers.js')
@@ -14,14 +19,14 @@ var path = require('path');
  * @param {object} Constructor arguments
  * @return {array}
  */
-function upload(contractName, privkey, argObj, params) { 
+function upload(contractName, privkey, argObj, params) {
   var compiledFile = path.join('app', 'meta', contractName, contractName + ".json");
 
   var id = setInterval(function () { console.log("    ...waiting for transaction to be mined"); }, 2000);
 
   var toRet = fs.readFileAsync(compiledFile, {encoding:"utf8"}).
     then(Solidity.attach).
-    then(function(solObj) { 
+    then(function(solObj) {
       var toret;
       if (argObj.constructor === Object) {
         toret = solObj.construct(argObj);
@@ -47,9 +52,9 @@ function upload(contractName, privkey, argObj, params) {
         fs.writeFileAsync(arr[1], arr[2])
         ).return(arr);
     })
-   .catch(function (err) { 
+   .catch(function (err) {
      console.log("there was an error: " + JSON.stringify(err));
-     clearInterval(id); 
+     clearInterval(id);
      Promise.reject(JSON.stringify(err));
    });
 

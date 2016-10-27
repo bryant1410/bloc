@@ -4,8 +4,8 @@ var express = require('express');
 var helper = require('../lib/contract-helpers.js');
 var router = express.Router();
 var Promise = require('bluebird');
-var ba = require('blockapps-js');
-var Solidity = ba.Solidity;
+var api = require('blockapps-js');
+var Solidity = api.Solidity;
 
 var cors = require('cors');
 var traverse = require('traverse');
@@ -18,6 +18,9 @@ var yaml = require('js-yaml');
 var fs = require('fs');
 var config = yaml.safeLoad(fs.readFileSync('config.yaml'));
 var apiURI = config.apiURL;
+
+api.ethbase.Transaction.gasPrice = 1;
+api.ethbase.Transaction.gasPrice = 3141592;
 
 /* accept header used */
 router.get('/:contractName', cors(), function (req, res) {

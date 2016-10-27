@@ -11,7 +11,7 @@ var del = require('del');
 //var rimraf = require('rimraf');
 //var vinylFs = require( 'vinyl-fs' );
 var Promise = require('bluebird');
-var fs = Promise.promisifyAll(require('fs')); 
+var fs = Promise.promisifyAll(require('fs'));
 var mkdirp = Promise.promisifyAll(require('mkdirp'));
 
 var path = require('path');
@@ -22,7 +22,7 @@ var apiURI = config.apiURL;
 
 var api = require('blockapps-js');
 
-var Solidity = require('blockapps-js').Solidity;
+var Solidity = api.Solidity;
 var bodyParser = require('body-parser');
 
 var jsonParser = bodyParser.json();
@@ -35,6 +35,9 @@ var Int = api.ethbase.Int;
 var compile = require("../lib/compile.js");
 var upload = require("../lib/upload.js");
 
+api.ethbase.Transaction.gasPrice = 1;
+api.ethbase.Transaction.gasPrice = 3141592;
+
 function float2rat(x) {
   var tolerance = 1.0E-6;
   var h1=1; var h2=0;
@@ -46,7 +49,7 @@ function float2rat(x) {
     aux = k1; k1 = a*k1+k2; k2 = aux;
     b = 1/(b-a);
   } while (Math.abs(x-h1/k1) > x*tolerance);
-    
+
   return h1+"/"+k1;
 }
 
@@ -62,7 +65,7 @@ router.get('/:user', cors(), function(req, res) {
   var user = req.params.user;
 
   contractHelpers.userKeysStream(user)
-      .pipe( es.map( function (data, cb) { 
+      .pipe( es.map( function (data, cb) {
         cb(null, data.addresses[0]);
       }))
       .pipe(contractHelpers.collect())
@@ -81,9 +84,9 @@ router.post('/:user', cors(), function(req, res) {
   console.log("body: " + JSON.stringify(req.body));
 
   //console.log("thePath: " + thePath);
-    
+
   if (req.body.faucet === '1'){
-    if (typeof password === 'undefined' || password === '') { 
+    if (typeof password === 'undefined' || password === '') {
       res.send('password required for faucet call');
       return;
     }
@@ -93,30 +96,30 @@ router.post('/:user', cors(), function(req, res) {
     store.generateNewAddress(password);
 
     var fileName = path.join(thePath, store.addresses[0] + '.json');
-      
-    mkdirp(thePath, function (err) { 
+
+    mkdirp(thePath, function (err) {
       if (err) { console.err(err); res.send(err); }
-      else { 
-        fs.writeFile(fileName, store.serialize(), function() { 
+      else {
+        fs.writeFile(fileName, store.serialize(), function() {
           console.log("wrote: " + fileName);
         });
       }
     });
-   
+
     api.query.serverURI = process.env.API || apiURI;
     console.log("hitting faucet for " + store.addresses[0]);
-      
+
     api.routes.faucet(store.addresses[0])
       .then(function(_) {
         res.send(store.addresses[0]);
       })
-      .catch(function(err) { 
+      .catch(function(err) {
         res.send(err);
       });
 
   } else if(req.body.remove === '1'){
 
-    if (typeof password === 'undefined' || password === '') { 
+    if (typeof password === 'undefined' || password === '') {
       // TODO should really check password here?
       res.send('password required for removal call');
       return;
@@ -143,35 +146,35 @@ router.post('/:user', cors(), function(req, res) {
     var fileName = path.join(thePath, address + '.json');
     console.log("filename: " + fileName)
 
-    mkdirp(thePath, function (err) { 
+    mkdirp(thePath, function (err) {
       if (err) { console.err(err); res.send(err); }
-      else { 
-        fs.writeFile(fileName, JSON.stringify(json), function() { 
+      else {
+        fs.writeFile(fileName, JSON.stringify(json), function() {
           res.send(address);
         });
       }
     });
 
   } else {
-    if (typeof password === 'undefined' || password === '') { 
+    if (typeof password === 'undefined' || password === '') {
       res.send('password required for key generation');
       return;
     }
     console.log("just registering name, no faucet called");
 
     var seed = lw.keystore.generateRandomSeed();
-  
+
     var store = new lw.keystore(seed, password);
     store.generateNewAddress(password);
 
     var newAddress = store.addresses[0];
 
     var fileName = path.join(thePath, newAddress + '.json');
-    
-    mkdirp(thePath, function (err) { 
+
+    mkdirp(thePath, function (err) {
       if (err) { console.err(err); res.send(err); }
-      else { 
-        fs.writeFile(fileName, store.serialize(), function() { 
+      else {
+        fs.writeFile(fileName, store.serialize(), function() {
           res.send(newAddress);
         });
       }
@@ -182,7 +185,7 @@ router.post('/:user', cors(), function(req, res) {
 
 router.post('/:user/:address/send', cors(), function(req, res) {
   var password = req.body.password;
-  var user = req.params.user;  
+  var user = req.params.user;
   var address = req.params.address;
   var toAddress = req.body.toAddress;
   var value = req.body.value;
@@ -216,34 +219,34 @@ router.post('/:user/:address/send', cors(), function(req, res) {
       }))
 
       .on('data', function (data) {
-         
-        api.query.serverURI = process.env.API || apiURI;               
-        found = true; 
-             
-        try { 
+
+        api.query.serverURI = process.env.API || apiURI;
+        found = true;
+
+        try {
           var store = new lw.keystore.deserialize(JSON.stringify(data));
           var privkeyFrom = store.exportPrivateKey(address, password);
         } catch (e) {
           console.log("don't have the key!");
-          res.send("invalid address or incorrect password");     
+          res.send("invalid address or incorrect password");
           return;
         }
-  
+
         var valWei = units.convertEth(h1,h2).from("ether").to("wei");
         console.log(valWei);
 
-        var valueTX = Transaction({"value" : valWei, 
+        var valueTX = Transaction({"value" : valWei,
                                          "gasLimit" : Int(21000),
                                          "gasPrice" : Int(50000000000)});
-                 
+
         valueTX.send(privkeyFrom, toAddress)
         .then(function(txResult) {
           console.log("transaction result: " + txResult.message);
           res.send(JSON.stringify(valueTX));
         })
-        .catch(function(err) { 
+        .catch(function(err) {
           res.send(err);
-        }); 
+        });
       })
 
       .on('end', function () {
@@ -254,7 +257,7 @@ router.post('/:user/:address/send', cors(), function(req, res) {
 /* create contract from source */
 router.options('/:user/:address/contract', cors()); // enable pre-flight request for DELETE request
 router.post('/:user/:address/contract', cors(), function(req, res) {
-  var user = req.params.user;  
+  var user = req.params.user;
   var address = req.params.address;
   var txParams = req.body.txParams;
   var contract = req.body.contract;
@@ -279,13 +282,13 @@ router.post('/:user/:address/contract', cors(), function(req, res) {
       }))
       .on('data', function (data) {
         console.log("data is: " + data.addresses[0])
-        api.query.serverURI = process.env.API || apiURI;               
-        found = true; 
+        api.query.serverURI = process.env.API || apiURI;
+        found = true;
 
-        try { 
+        try {
           var store = new lw.keystore.deserialize(JSON.stringify(data));
           var privkeyFrom = store.exportPrivateKey(address, password);
-          
+
           console.log("About to upload contract")
         } catch (e) {
           console.log("don't have the key! error: " + e);
@@ -305,7 +308,7 @@ router.post('/:user/:address/contract', cors(), function(req, res) {
             console.log("uploading " + contract)
             return upload(contract, privkeyFrom, args, txParams);
           }
-          
+
         }).then(function (arr) {
           var addressOfContract = arr[3];
           console.log("address of contract: " + addressOfContract);
@@ -332,7 +335,7 @@ router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
   var src = req.body.src;
   var address = req.params.address;
   var user = req.params.user;
-  
+
   var txParams = req.params.txParams;
 
   var name = req.body.name;
@@ -345,18 +348,18 @@ router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
   .pipe(es.map(function (data,cb) {
 
     if (data.addresses[0] == address) {
-      console.log("user address found"); 
-      cb(null,data); 
+      console.log("user address found");
+      cb(null,data);
     }
     else{
       console.log("address does not exist for user");
       cb();
-    } 
+    }
   }))
   .pipe(es.map(function(data, cb) {
 
     var privkeyFrom;
-    try { 
+    try {
       var store = new lw.keystore.deserialize(JSON.stringify(data));
       privkeyFrom = store.exportPrivateKey(address, password);
     } catch (e) {
@@ -364,15 +367,15 @@ router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
     }
 
     cb(null, privkeyFrom);
-    
+
   }))
 
   .on('data', function(privkeyFrom) {
 
     console.log("src: " + JSON.stringify(src))
-    
+
     api.Solidity(src)
-    .then(function(solObjs) { 
+    .then(function(solObjs) {
       console.log("have solidity object: " + JSON.stringify(solObj))
       var solObj = solObjs[contract][name]
       var toret;
@@ -431,28 +434,28 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
   console.log('args: ' + JSON.stringify(args));
   console.log('method: ' + method);
   console.log("remote is " + remote)
-    
+
   contractHelpers.userKeysStream(user)
   .pipe(es.map(function (data,cb) {
 
     if (data.addresses[0] == address) {
       console.log("user address found");
-      found = true; cb(null,data); 
+      found = true; cb(null,data);
     }
     else{
       console.log("address does not exist for user");
       cb();
-    } 
+    }
   }))
   .pipe(es.map(function(data, cb) {
 
     if (data.token) {
-      console.log("actually called through device - saving in queue"); 
+      console.log("actually called through device - saving in queue");
       cb(null, data)
-    } else { 
-  
+    } else {
+
       var privkeyFrom;
-      try { 
+      try {
         var store = new lw.keystore.deserialize(JSON.stringify(data));
         privkeyFrom = store.exportPrivateKey(address, password);
       } catch (e) {
@@ -471,7 +474,7 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
     //   //res.send("no contract found at that address");
     //   cmas = contractHelpers.contractsMetaAddressStream(contractName, contractName);
     // }
-  
+
     cmas
     .pipe(contractHelpers.collect())
     .on('data', function(data){
@@ -537,15 +540,15 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
           var dt = date.getTime();
           var pp = path.join('app', 'pending', address);
           var filename = path.join(pp, dt+".json");
-          mkdirp(pp, function (err) {   
-            if (err) { 
-              console.err(err); 
-              res.send(err); 
-            } else { 
+          mkdirp(pp, function (err) {
+            if (err) {
+              console.err(err);
+              res.send(err);
+            } else {
               console.log('path: ' + pp)
               console.log('filename: ' + filename)
               var callData = {
-                contractName: contractName, 
+                contractName: contractName,
                 method: method,
                 args: args,
                 time: dt,
@@ -559,7 +562,7 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
                                     , "call":callData
               };
               console.log("to put in file: " + JSON.stringify(allData))
-              fs.writeFile(filename, JSON.stringify(allData), function() { 
+              fs.writeFile(filename, JSON.stringify(allData), function() {
                 console.log("wrote: " + filename);
                 res.send("put transaction in queue for: " + address)
               });
@@ -573,7 +576,7 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
             console.log("txResult", typeof txResult, txResult, string);
             res.send("transaction returned: " + string);
           })
-          .catch(function(err) { 
+          .catch(function(err) {
             console.log("error calling contract: " + err)
             res.send(err);
             return;
@@ -583,7 +586,7 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
         console.log("contract " + contractName + " doesn't have method: " + method);
         res.send("contract " + contractName + " doesn't have method: " + method);
         return;
-      } 
+      }
     }).on('end', function(){
       console.log("no more contract(s) found at address")
     })

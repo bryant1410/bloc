@@ -9,8 +9,11 @@ catch(e) {
 
 var Promise = require('bluebird');
 var fs = require("fs");
-//var fs = Promise.promisifyAll(require("fs"));    
-var faucet = require("blockapps-js").routes.faucet;
+//var fs = Promise.promisifyAll(require("fs"));
+var api = require('blockapps-js');
+api.ethbase.Transaction.gasPrice = 1;
+api.ethbase.Transaction.gasPrice = 3141592;
+var faucet = api.routes.faucet;
 
 var path = require('path');
 var chalk = require('chalk');
@@ -33,7 +36,7 @@ function writeKeyToDisk (userName, store, cb) {
 
   var id = setInterval(function () { console.log(chalk.yellow("    ...waiting for transaction to be mined")); }, 2000);
 
-  mkdirp(keyPath, function (_) { 
+  mkdirp(keyPath, function (_) {
     fs.writeFile(fileName, store.serialize(), function(err){
       console.log("wrote " + fileName);
       faucet(store.addresses[0])
@@ -43,16 +46,16 @@ function writeKeyToDisk (userName, store, cb) {
         if(cb){
           cb(err, store);
         }
-      });  
+      });
     });
   });
 }
 
-function generateKey (password,userName) { 
+function generateKey (password,userName) {
   var store = generateKeyPreWrite(password, userName)
   writeKeyToDisk(userName, store);
   return store;
-} 
+}
 
 module.exports = {
   generateKey : generateKey,
