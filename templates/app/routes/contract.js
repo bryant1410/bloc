@@ -5,6 +5,7 @@ var helper = require('../lib/contract-helpers.js');
 var router = express.Router();
 var Promise = require('bluebird');
 var Solidity = require('blockapps-js').Solidity;
+var compileSol = require('../lib/compile.js');
 
 var cors = require('cors');
 var traverse = require('traverse');
@@ -368,6 +369,34 @@ router.get('/:contractName/all/states', cors(), function (req, res) {
             });
 
           }));
+});
+
+/**
+ * /compile takes an array of contractSources
+ * returns: array of contract names and their code hashes
+ */
+router.post('/compile', cors(), function (req,res) {
+
+  var contractSources = req.body;
+
+  var contractHashes = [];
+  return Promise.each(contractSources, function(contractSource){
+    return compileSol(contractSource.source).then(function(solObj){
+      // console.log(solObj);
+      for(contract in solObj.src){
+        contractHashes.push({
+          contractName: contract,
+          codeHash: solObj.src[contract].codeHash
+        });
+      }
+    });
+  }).then(function(_){
+    console.log('here',contractHashes);
+    res.send(contractHashes);
+  }).catch(function(err){
+    console.log(err);
+    res.status(500).send(err);
+  });
 });
 
 module.exports = router;
