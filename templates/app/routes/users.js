@@ -180,6 +180,88 @@ router.post('/:user', cors(), function(req, res) {
 });
 
 
+
+// write test first
+// expects
+// {
+//   "password": "1234",
+//   "txs": [{
+//     "toAddress": "deadbeef",
+//     "value": "9999999"
+//   }, {
+//     "toAddress": "abba",
+//     "value": "55555"
+//   }]
+// }
+
+router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
+
+  var password = req.body.password;
+  var user = req.params.user;  
+  var address = req.params.address;
+
+  var found = false;
+
+  if (typeof req.body.password === 'undefined' || req.body.password === '') {
+    res.send('password required');
+    return;
+  }
+
+  contractHelpers.userKeysStream(user)
+      .pipe(es.map(function (data,cb) {
+        if (data.addresses[0] == address) cb(null,data);
+        else cb();
+      }))
+
+      .on('data', function (data) {
+         
+        api.query.serverURI = process.env.API || apiURI;               
+        found = true; 
+             
+        try { 
+          var store = new lw.keystore.deserialize(JSON.stringify(data));
+          var privkeyFrom = store.exportPrivateKey(address, password);
+        } catch (e) {
+          console.log("don't have the key!");
+          res.send("invalid address or incorrect password");     
+          return;
+        }
+
+        var txs = req.body.txs.map(function(x) {
+          //console.log(x.value + " --> " + x.toAddress)
+
+          var strVal = float2rat(x.value);
+
+          var h1 = strVal.split('/')[0];
+          var h2 = strVal.split('/')[1];        
+    
+          var valWei = units.convertEth(h1,h2).from("ether").to("wei");
+
+          var valueTX = Transaction({"value" : valWei, 
+                                     "gasLimit" : Int(21000),
+                                     "gasPrice" : Int(50000000000)});
+
+          return valueTX;
+        })
+
+        Promise.mapSeries(txs, function (x,i) {
+          return x.send(privkeyFrom, req.body.txs[i].toAddress) // toAddress
+        })
+        .then(function(r) {
+          res.send(r);
+        })
+        .catch(function(err) { 
+          res.send("an error: " + err);
+        }); 
+      })
+
+      .on('end', function () {
+        if (!found) res.send('address ' + address + ' for user ' + user + ' not found');
+      });
+
+})
+
+
 router.post('/:user/:address/send', cors(), function(req, res) {
   var password = req.body.password;
   var user = req.params.user;  
