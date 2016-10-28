@@ -1,10 +1,10 @@
 var fs = require('fs');
 var Solidity = require('blockapps-js').Solidity;
-var rp = require('request-promise');
+// var rp = require('request-promise');
 var path = require('path');
 var mkdirp = require('mkdirp');
 var chalk = require('chalk');
-var yamlConfig = require('./yaml-config');
+// var yamlConfig = require('./yaml-config');
 var fs = require('fs');
 
 function compileSol(solSrc) {
@@ -47,21 +47,21 @@ function compileSol(solSrc) {
         fs.writeFileSync(multiPath, contract.detach());
 
         console.log(chalk.green("wrote: ") + multiPath);
-        var options = {
-          method: 'POST',
-          uri: yamlConfig.readYaml('config.yaml').apiURL + ':3333',
-          body: contract.detach(),
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        };
-          // json: true
-        rp(options).then(function(_){
-          console.log('Successfully created table in cirrus for contract ' + contractName);
-        })
-        .catch(function(err){
-          console.log('Error Creating table in cirrus: ', err);
-        });
+        // var options = {
+        //   method: 'POST',
+        //   uri: yamlConfig.readYaml('config.yaml').apiURL + ':3333',
+        //   body: contract.detach(),
+        //   headers: {
+        //     'Content-Type': 'application/json'
+        //   }
+        // };
+        //   // json: true
+        // rp(options).then(function(_){
+        //   console.log('Successfully created table in cirrus for contract ' + contractName);
+        // })
+        // .catch(function(err){
+        //   console.log('Error Creating table in cirrus: ', err);
+        // });
       }
     });
     console.log(theObj);
