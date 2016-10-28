@@ -202,6 +202,8 @@ router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
   var user = req.params.user;  
   var address = req.params.address;
 
+  var resolve = !(typeof req.body.resolve === 'undefined' || req.body.resolve === false);
+
   var found = false;
 
   if (typeof req.body.password === 'undefined' || req.body.password === '') {
@@ -260,7 +262,16 @@ router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
           Promise.all(api.routes.submitTransactionList(txs))
 
           .then(function(r) {
-            res.send(r);
+
+            if(resolve){
+              Promise.all(r.map(function(x){return x.txResult})).then(function(txRes){
+                res.send(txRes);
+              })    
+            } else {
+              Promise.all(r.map(function(x){return x.txHash})).then(function(hash){
+                res.send(hash);
+              })
+            }
           })
           .catch(function(err) { 
             res.send("an error: " + err);
@@ -268,7 +279,6 @@ router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
 
         })
       })
-
       .on('end', function () {
         if (!found) res.send('address ' + address + ' for user ' + user + ' not found');
       });
@@ -345,6 +355,7 @@ router.post('/:user/:address/send', cors(), function(req, res) {
         if (!found) res.send('address ' + address + ' for user ' + user + ' not found');
       });
 });
+
 
 /* create contract from source */
 router.options('/:user/:address/contract', cors()); // enable pre-flight request for DELETE request
