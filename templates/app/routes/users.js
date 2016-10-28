@@ -35,6 +35,8 @@ var Int = api.ethbase.Int;
 var compile = require("../lib/compile.js");
 var upload = require("../lib/upload.js");
 
+api.handlers.enable = true;
+
 function float2rat(x) {
   var tolerance = 1.0E-6;
   var h1=1; var h2=0;
@@ -227,38 +229,49 @@ router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
           return;
         }
 
-        var txs = req.body.txs.map(function(x) {
-          //console.log(x.value + " --> " + x.toAddress)
+        var nonceC;
+        api.ethbase.Account(address).nonce
+        .then(function(n) { console.log("Setting nonce to " + n); nonceC = n; })
+        .then(function(){
+          var txs = req.body.txs.map(function(x, i) {
 
-          var strVal = float2rat(x.value);
+            var strVal = float2rat(x.value);
 
-          var h1 = strVal.split('/')[0];
-          var h2 = strVal.split('/')[1];        
-    
-          var valWei = units.convertEth(h1,h2).from("ether").to("wei");
+            var h1 = strVal.split('/')[0];
+            var h2 = strVal.split('/')[1];        
+      
+            var valWei = units.convertEth(h1,h2).from("ether").to("wei");
 
-          var valueTX = Transaction({"value" : valWei, 
-                                     "gasLimit" : Int(21000),
-                                     "gasPrice" : Int(50000000000)});
+            //console.log(address + ": " + x.value + " --> " + x.toAddress)
+            var valueTX = Transaction({"nonce": api.ethbase.Int(nonceC+i),
+                                       "value" : valWei, 
+                                       "gasLimit" : Int(21000),
+                                       "gasPrice" : Int(50000000000),
+                                       "to": x.toAddress
+                                     });
 
-          return valueTX;
+            // we need to set `from` _after_ signing the transaction
+            valueTX.sign(privkeyFrom);
+            valueTX.from = api.ethbase.Address(address);
+
+            return valueTX;
+          })
+
+          Promise.all(api.routes.submitTransactionList(txs))
+
+          .then(function(r) {
+            res.send(r);
+          })
+          .catch(function(err) { 
+            res.send("an error: " + err);
+          }); 
+
         })
-
-        Promise.mapSeries(txs, function (x,i) {
-          return x.send(privkeyFrom, req.body.txs[i].toAddress) // toAddress
-        })
-        .then(function(r) {
-          res.send(r);
-        })
-        .catch(function(err) { 
-          res.send("an error: " + err);
-        }); 
       })
 
       .on('end', function () {
         if (!found) res.send('address ' + address + ' for user ' + user + ' not found');
       });
-
 })
 
 
