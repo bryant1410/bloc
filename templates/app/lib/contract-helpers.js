@@ -1,12 +1,12 @@
 'use strict';
 
-var path = require('path');                                                                
+var path = require('path');
 var yaml = require('js-yaml');
 var readdirp = require('readdirp');
 
 var vinylFs = require( 'vinyl-fs' );
 var map = require( 'map-stream' );
-var stream = require('stream');  
+var stream = require('stream');
 var es = require('event-stream');
 var merge = require('deepmerge');
 var fs = require('fs');
@@ -21,11 +21,17 @@ var getContents = function(file, cb) {
 };
 
 var getPath = function(file, cb) {
-  cb(null,file.relative);
+  if(file.relative.includes('\\')) {
+    var index = file.relative.lastIndexOf('\\');
+    var val = file.relative.slice(index+1);
+    cb(null,val);
+  } else {
+    cb(null,file.relative);
+  }
 };
 
 // var getDir = function(file, cb) {
-//   cb(null,file.cwd);    
+//   cb(null,file.cwd);
 // };
 
 function contractNameStream(contractName) {
@@ -40,19 +46,19 @@ function userNameStream() {
 /* all contract names, just checking for their presence */
 function contractsStream() {
   return vinylFs.src( [ path.join('app', 'contracts', '*.sol') ] )
-      .pipe( map(getPath) );  
+      .pipe( map(getPath) );
 }
 
-function contractDirsStream() { 
+function contractDirsStream() {
   return readdirp({root: path.join('app','meta'), depth: 1});
 }
 
 function contractAddressesStream(name) {
   return vinylFs.src( [ path.join('app', 'meta', name, '*.json') ] )
-      .pipe( map(getPath) );  
+      .pipe( map(getPath) );
 }
 
-function contractsMetaAddressStream(name,address) { 
+function contractsMetaAddressStream(name,address) {
   var fileName = path.join('app', 'meta', name, address + '.json');
   var inject = false;
   try {
@@ -94,7 +100,7 @@ function contractsMetaAddressStream(name,address) {
 }
 
 /* emits all contract metadata as json */
-function contractsMetaStream() { 
+function contractsMetaStream() {
   return vinylFs.src( [ path.join('meta', '*.json') ] )
       .pipe( map(getContents) )
       .pipe( es.map(function (data, cb) {
@@ -143,13 +149,13 @@ function allKeysStream() {
       }));
 }
 
-// collects a bunch of data, makes an array out of it, and emits it 
+// collects a bunch of data, makes an array out of it, and emits it
 
 function collect() {
 
   var a = new stream.Stream ()
     , array = [], isDone = false;
- 
+
   a.write = function (l) {
     array.push(l);
   }
@@ -165,7 +171,7 @@ function collect() {
 
   a.destroy = function () {
     a.writable = a.readable = false;
-    
+
     if (isDone) return;
   }
 
