@@ -202,7 +202,7 @@ router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
   var user = req.params.user;  
   var address = req.params.address;
 
-  var resolve = !(typeof req.body.resolve === 'undefined' || req.body.resolve === false);
+  var resolve = req.body.resolve || false;
 
   var found = false;
 
@@ -259,10 +259,10 @@ router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
             return valueTX;
           })
 
+          //contractHelpers.resolveTxs(txs, res.send, resolve)
+
           Promise.all(api.routes.submitTransactionList(txs))
-
           .then(function(r) {
-
             if(resolve){
               Promise.all(r.map(function(x){return x.txResult})).then(function(txRes){
                 res.send(txRes);
@@ -276,7 +276,6 @@ router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
           .catch(function(err) { 
             res.send("an error: " + err);
           }); 
-
         })
       })
       .on('end', function () {
@@ -338,8 +337,8 @@ router.post('/:user/:address/send', cors(), function(req, res) {
         console.log(valWei);
 
         var valueTX = Transaction({"value" : valWei, 
-                                         "gasLimit" : Int(21000),
-                                         "gasPrice" : Int(50000000000)});
+                                   "gasLimit" : Int(21000),
+                                   "gasPrice" : Int(50000000000)});
                  
         valueTX.send(privkeyFrom, toAddress)
         .then(function(txResult) {
@@ -356,6 +355,105 @@ router.post('/:user/:address/send', cors(), function(req, res) {
       });
 });
 
+router.options('/:user/:address/uploadList', cors()); // enable pre-flight request for DELETE request
+router.post('/:user/:address/uploadList', cors(), function(req, res) {
+
+  var user = req.params.user;  
+  var address = req.params.address;
+
+  var resolve = !(typeof req.body.resolve === 'undefined' || req.body.resolve === false);
+  var password = req.body.password;
+
+  var contracts = req.body.contracts;
+
+  contractHelpers.userKeysStream(user)
+  .pipe(es.map(function (data,cb) {
+
+    if (data.addresses[0] == address) {
+      console.log("user address found"); 
+      cb(null,data); 
+    }
+    else{
+      console.log("address does not exist for user");
+      cb();
+    } 
+  }))
+  .pipe(es.map(function(data, cb) {
+
+    var privkeyFrom;
+    try { 
+      var store = new lw.keystore.deserialize(JSON.stringify(data));
+      privkeyFrom = store.exportPrivateKey(address, password);
+    } catch (e) {
+      res.send("address not found or password incorrect");
+    }
+
+    cb(null, privkeyFrom);
+    
+  }))
+
+  .on('data', function(privkeyFrom) {
+
+    var nonceC;
+    api.ethbase.Account(address).nonce
+    .then(function(n) { console.log("Setting nonce to " + n); nonceC = n; })
+    .then(function(){
+
+      var txs = contracts.map(function(c, i){
+        console.log(i, nonceC)
+        var name = c.contractName;
+        var args = c.args;
+        var txParams = c.txParams || {};
+        console.log("trying contract " + name + " with args " + args)
+
+        contractHelpers.contractsMetaAddressStream(name)
+        .pipe(contractHelpers.collect())
+        .on('data', function(data){
+
+          var contractJson = data[0];
+
+          var solObj = Solidity.attach(contractJson);
+
+          var toret;
+          if (args.constructor === Object) {
+            console.log("calling constructor")
+            toret = solObj.construct(args);
+          } else {
+            console.log("calling constructor(2)")
+            toret = solObj.construct.apply(solObj, args);
+          }
+          // also set nonce here
+
+          toret.txParams(txParams);
+          toret.sign(privkeyFrom);
+          toret.from = api.ethbase.Address(address);
+
+          return toret;
+        })
+      })
+
+      Promise.all(api.routes.submitTransactionList(txs))
+            .then(function(r) {
+              if(resolve){
+                Promise.all(r.map(function(x){return x.txResult})).then(function(txRes){
+                  res.send(txRes);
+                })    
+              } else {
+                Promise.all(r.map(function(x){return x.txHash})).then(function(hash){
+                  res.send(hash);
+                })
+              }
+            })
+            .catch(function(err) { 
+              res.send("an error: " + err);
+            }); 
+
+    });
+  })
+  .on('end', function(){
+    console.log("no more users to process")
+  })
+});
 
 /* create contract from source */
 router.options('/:user/:address/contract', cors()); // enable pre-flight request for DELETE request
@@ -479,8 +577,8 @@ router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
     
     api.Solidity(src)
     .then(function(solObjs) { 
-      console.log("have solidity object: " + JSON.stringify(solObj))
       var solObj = solObjs[contract][name]
+      console.log("have solidity object: " + JSON.stringify(solObj))
       var toret;
       if (args.constructor === Object) {
         console.log("calling constructor")

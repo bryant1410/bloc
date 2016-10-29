@@ -10,6 +10,7 @@ var stream = require('stream');
 var es = require('event-stream');
 var merge = require('deepmerge');
 var fs = require('fs');
+var api = require('blockapps-js');
 
 /* utility */
 var getContents = function(file, cb) {
@@ -52,7 +53,7 @@ function contractAddressesStream(name) {
       .pipe( map(getPath) );  
 }
 
-function contractsMetaAddressStream(name,address) { 
+function contractsMetaAddressStream(name, address) { 
   var fileName = path.join('app', 'meta', name, address + '.json');
   var inject = false;
   try {
@@ -233,6 +234,24 @@ function pendingForAddress(address){
   }));
 }
 
+function resolveTxs(txs, cb, resolve){
+  return Promise.all(api.routes.submitTransactionList(txs))
+    .then(function(r) {
+      if(resolve){
+        Promise
+        .all(r.map(function(x){return x.txResult}))
+        .then(cb)
+      } else {
+        Promise
+        .all(r.map(function(x){return x.txHash}))
+        .then(cb)
+      }
+    })
+    .catch(function(err) { 
+      cb("an error: " + err);
+    }); 
+}
+
 function txToJSON(t) {
   var result = {
     "nonce"      : t.nonce,
@@ -290,6 +309,7 @@ module.exports = {
   pendingForUser: pendingForUser,
   pendingForAddress: pendingForAddress,
   txToJSON: txToJSON,
+  resolveTxs: resolveTxs,
   fromSolidity: function(x){
     if(x)
       return x.split('0').join('').hexDecode8();
