@@ -182,20 +182,22 @@ router.post('/:user', cors(), function(req, res) {
 });
 
 
-
-// write test first
-// expects
-// {
-//   "password": "1234",
-//   "txs": [{
-//     "toAddress": "deadbeef",
-//     "value": "9999999"
-//   }, {
-//     "toAddress": "abba",
-//     "value": "55555"
-//   }]
-// }
-
+/**
+ * Takes a list of addresses and values in ETH.
+ * It submits all these transactions as a signed batch. If resolve is
+ * true, it will return the reult of the transaction. Otherwise it wil
+ * only return the hash.
+ * The input is:
+ * [
+ *  "password":"1234",
+ *  "resolve":"true",
+ * {
+ *  toAddress: "deadbeef"
+ *  value: 2
+ * },
+ * ...
+ * ]
+ */ 
 router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
 
   var password = req.body.password;
@@ -332,6 +334,22 @@ router.post('/:user/:address/send', cors(), function(req, res) {
       });
 });
 
+/**
+ * Takes a list of contract names and (optionally) constructor agruments.
+ * It submits all these transactions as a signed batch. If resolve is
+ * true, it will return the reult of the transaction. Otherwise it wil
+ * only return the hash.
+ * The input is:
+ * [
+ *  "password":"1234",
+ *  "resolve":"true",
+ * {
+ *  contractName: "Sample"
+ *  args: {}
+ * },
+ * ...
+ * ]
+ */ 
 router.options('/:user/:address/uploadList', cors()); // enable pre-flight request for DELETE request
 router.post('/:user/:address/uploadList', cors(), function(req, res) {
 
@@ -409,7 +427,7 @@ router.options('/:user/:address/contract', cors()); // enable pre-flight request
 router.post('/:user/:address/contract', cors(), function(req, res) {
   var user = req.params.user;  
   var address = req.params.address;
-  var txParams = req.body.txParams;
+  var txParams = req.body.txParams || {};
   var contract = req.body.contract;
   console.log("contract as body is: " + contract)
 
@@ -552,20 +570,26 @@ router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
   })
 })
 
-//  /users/<user>/<account>/callList
-// password: 1234,
-// resolve: true,
-// txs: [
-// {
-// ContractName: "Sample"
-// ContractAddress: "deadbeef"
-// MethodName: "something"
-// args: {},
-// value : 123
-// },
-// ...
-// ]
-
+/**
+ * Takes a list of contract names, addresses and functions and 
+ * (optionally) function agruments.
+ * It submits all these transactions as a signed batch. If resolve is
+ * true, it will return the reult of the transaction. Otherwise it wil
+ * only return the hash.
+ * The input is:
+ * [
+ *  "password":"1234",
+ *  "resolve":"true",
+ * {
+ *  contractName: "Sample"
+ *  contraftAddress: "deadbeef",
+ *  methodName: "something",
+ *  value: 123,
+ *  args: {}
+ * },
+ * ...
+ * ]
+ */ 
 router.options('/:user/:address/callList', cors()); // enable pre-flight request for POST request
 router.post('/:user/:address/callList', jsonParser, cors(), function(req, res) {
 
