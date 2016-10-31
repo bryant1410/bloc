@@ -261,7 +261,7 @@ router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
 
           //contractHelpers.resolveTxs(txs, res.send, resolve)
 
-          console.log("Submitting txs for sendList: " + JSON.stringify(r))
+          console.log("Submitting txs for sendList: " + JSON.stringify(txs))
           Promise.all(api.routes.submitTransactionList(txs))
           .then(function(r) {
             if(resolve){
