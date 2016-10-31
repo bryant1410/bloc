@@ -202,8 +202,7 @@ router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
   var user = req.params.user;  
   var address = req.params.address;
 
-  var resolve = req.body.resolve || false;
-
+  var resolve = req.body.resolve == "true";
   var found = false;
 
   if (typeof req.body.password === 'undefined' || req.body.password === '') {
@@ -227,57 +226,34 @@ router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
           var privkeyFrom = store.exportPrivateKey(address, password);
         } catch (e) {
           console.log("don't have the key!");
-          res.send("invalid address or incorrect password");     
+          res.send("invalid address or incorrect password");
           return;
         }
 
-        var nonceC;
-        api.ethbase.Account(address).nonce
-        .then(function(n) { console.log("Setting nonce to " + n); nonceC = n; })
-        .then(function(){
-          var txs = req.body.txs.map(function(x, i) {
-
-            var strVal = float2rat(x.value);
-
-            var h1 = strVal.split('/')[0];
-            var h2 = strVal.split('/')[1];        
-      
-            var valWei = units.convertEth(h1,h2).from("ether").to("wei");
-
-            //console.log(address + ": " + x.value + " --> " + x.toAddress)
-            var valueTX = Transaction({"nonce": api.ethbase.Int(nonceC+i),
-                                       "value" : valWei, 
-                                       "gasLimit" : Int(21000),
-                                       "gasPrice" : Int(50000000000),
-                                       "to": x.toAddress
-                                     });
-
-            // we need to set `from` _after_ signing the transaction
-            valueTX.sign(privkeyFrom);
-            valueTX.from = api.ethbase.Address(address);
-
-            return valueTX;
-          })
-
-          //contractHelpers.resolveTxs(txs, res.send, resolve)
-
-          console.log("Submitting txs for sendList: " + JSON.stringify(txs))
-          Promise.all(api.routes.submitTransactionList(txs))
-          .then(function(r) {
-            if(resolve){
-              Promise.all(r.map(function(x){return x.txResult})).then(function(txRes){
-                res.send(txRes);
-              })    
-            } else {
-              Promise.all(r.map(function(x){return x.txHash})).then(function(hash){
-                res.send(hash);
-              })
-            }
-          })
-          .catch(function(err) { 
-            res.send("an error: " + err);
-          }); 
+        var toTx = req.body.txs.map(function(x, _) {
+          var strVal = float2rat(x.value);
+          var h1 = strVal.split('/')[0];
+          var h2 = strVal.split('/')[1];        
+          var valWei = units.convertEth(h1,h2).from("ether").to("wei");
+          return {toAddress: x.toAddress, value: valWei};
         })
+
+        var sendTxs = api.routes.submitSendList(toTx, address, privkeyFrom);
+        Promise.all(sendTxs)
+        .then(function(r) {
+          if(resolve){
+            Promise.all(r.map(function(x){return x.txResult})).then(function(txRes){
+              res.send(txRes);
+            })    
+          } else {
+            Promise.all(r.map(function(x){return x.txHash})).then(function(hash){
+              res.send(hash);
+            })
+          }
+        })
+        .catch(function(err) {
+          res.status(500).send("an error: " + err);
+        }); 
       })
       .on('end', function () {
         if (!found) res.send('address ' + address + ' for user ' + user + ' not found');
@@ -362,7 +338,7 @@ router.post('/:user/:address/uploadList', cors(), function(req, res) {
   var user = req.params.user;  
   var address = req.params.address;
 
-  var resolve = !(typeof req.body.resolve === 'undefined' || req.body.resolve === false);
+  var resolve = req.body.resolve == "true";
   var password = req.body.password;
 
   var contracts = req.body.contracts;
@@ -379,7 +355,7 @@ router.post('/:user/:address/uploadList', cors(), function(req, res) {
       cb();
     } 
   }))
-  .pipe(es.map(function(data, cb) {
+  .on('data', function (data) {
 
     var privkeyFrom;
     try { 
@@ -389,76 +365,39 @@ router.post('/:user/:address/uploadList', cors(), function(req, res) {
       res.send("address not found or password incorrect");
     }
 
-    cb(null, privkeyFrom);
-    
-  }))
-
-  .on('data', function(privkeyFrom) {
-  //  .pipe(es.map(function (privkeyFrom,cb) {
-
-    var nonceC;
-    api.ethbase.Account(address).nonce
-    .then(function(n) { console.log("Setting nonce to " + n); nonceC = n; })
-    .then(function(){
-
-      var txs = contracts.map(function(c, i){
-        console.log("Nonce: ", i, nonceC);
-        var name = c.contractName;
-        var args = c.args;
-        var txParams = c.txParams || {};
-        console.log("trying contract " + name + " with args " + args)
-
-        return new Promise(function(resolve, _){
-          contractHelpers.contractsMetaAddressStream(name)
-          .pipe(contractHelpers.collect())
-          .on('data', function(data){
-
-            var contractJson = data[0];
-
-            var solObj = Solidity.attach(contractJson);
-
-            var toret;
-            if (args.constructor === Object) {
-              console.log("calling constructor")
-              toret = solObj.construct(args);
-            } else {
-              console.log("calling constructor(2)")
-              toret = solObj.construct.apply(solObj, args);
-            }
-
-            toret.txParams(txParams);
-            toret.sign(privkeyFrom);
-            toret.nonce = api.ethbase.Int(nonceC+i);
-            toret.from = api.ethbase.Address(address);
-
-            console.log("pushing tx to array")
-            resolve(toret);
+    var objProm = contracts.map(function(c, _){
+      return new Promise(function(resolve, _){
+        contractHelpers.contractsMetaAddressStream(c.contractName)
+        .pipe(contractHelpers.collect())
+        .on('data', function(data){
+          var contractJson = data[0];
+          resolve({
+            contractJson: contractJson, 
+            contractName: c.contractName,
+            args: c.args,
+            txParams: c.txParams || {}
           })
-        })
+        });
       })
-
-      console.log("txs: " + JSON.stringify(txs))
-
-      Promise.all(txs)
-      .then(function(r){
-        console.log("Submitting txs for uploadList: " + JSON.stringify(r))
-        Promise.all(api.routes.submitTransactionList(r))
-            .then(function(r) {
-              if(resolve){
-                Promise.all(r.map(function(x){return x.txResult})).then(function(txRes){
-                  res.send(txRes);
-                })    
-              } else {
-                Promise.all(r.map(function(x){return x.txHash})).then(function(hash){
-                  res.send(hash);
-                })
-              }
-            })
-            .catch(function(err) { 
-              res.send("an error: " + err);
-            }); 
-      })  
     });
+
+    Promise.all(objProm).then(function(contractTxs){
+      Promise.all(api.routes.submitContractCreateList(contractTxs, address, privkeyFrom))
+      .then(function(r) {
+        if(resolve){
+          Promise.all(r.map(function(x){return x.txResult})).then(function(txRes){
+            res.send(txRes);
+          })    
+        } else {
+          Promise.all(r.map(function(x){return x.txHash})).then(function(hash){
+            res.send(hash);
+          })
+        }
+      })
+      .catch(function(err) { 
+        res.send("an error: " + err);
+      }); 
+    })
   })
   .on('end', function(){
     console.log("no more users to process")
@@ -635,7 +574,7 @@ router.post('/:user/:address/callList', jsonParser, cors(), function(req, res) {
   var user = req.params.user;
 
   var contractCalls = req.body.txs;
-  var resolve = req.body.resolve;
+  var resolve = req.body.resolve == "true";
 
   contractHelpers.userKeysStream(user)
   .pipe(es.map(function (data,cb) {
@@ -649,7 +588,7 @@ router.post('/:user/:address/callList', jsonParser, cors(), function(req, res) {
       cb();
     } 
   }))
-  .pipe(es.map(function(data, cb) {
+  .on('data', function(data) {
 
     var privkeyFrom;
     try { 
@@ -659,114 +598,47 @@ router.post('/:user/:address/callList', jsonParser, cors(), function(req, res) {
       res.send("address not found or password incorrect");
     }
 
-    cb(null, privkeyFrom);
-    
-  }))
-
-  .on('data', function(privkeyFrom) {
-
-    var nonceC;
-    api.ethbase.Account(address).nonce
-    .then(function(n) { console.log("Setting nonce to " + n); nonceC = n; })
-    .then(function(){
-
-      var txs = contractCalls.map(function(c, i){
-        console.log("Nonce: ", i, nonceC);
-
-        var name = c.contractName;
-        var address = c.contractAddress;
-        var method = c.methodName;
-        var args = c.args;
-        var value = c.value;
-        var txParams = c.txParams || {};
-
-        console.log("calling " + name + "." + method + "(" + args + ")")
-
-        return new Promise(function(resolve, _){
-          contractHelpers.contractsMetaAddressStream(name, address)
-          .pipe(contractHelpers.collect())
-          .on('data', function(data){
-
-            var contractJson = data[0];
-
-            var contract = Solidity.attach(contractJson);
-
-            value = Math.max(0, value)
-            if (value != undefined) {
-              var pv = units.convertEth(value).from("ether").to("wei" );
-              console.log("pv: " + pv.toString(10))
-            }
-            txParams.value = pv.toString(10);
-
-            if(contract.state[method] != undefined){
-              console.log("args: " + JSON.stringify(args))
-              try {
-                var toret = contract.state[method](args).txParams(txParams);
-              } catch (error){
-                console.log("failed to look at state for contract: " + error)
-                res.send("failed to look at state for contract: " + error)
-                return;
-              }
-
-              console.log("Making function call now")
-              //contractstate.callFrom(privkeyFrom)
-              // .then(function (txResult) {
-              //   var string = (txResult && Buffer.isBuffer(txResult)) ? txResult.toString('hex') : txResult+"";
-              //   console.log("txResult", typeof txResult, txResult, string);
-              //   res.send("transaction returned: " + string);
-              // })
-              // .catch(function(err) { 
-              //   console.log("error calling contract: " + err)
-              //   res.send(err);
-              //   return;
-              // });
-              
-            } else {
-              console.log("contract " + contractName + " doesn't have method: " + method);
-              res.send("contract " + contractName + " doesn't have method: " + method);
-              return;
-            } 
-
-            toret.txParams(txParams);
-            toret.sign(privkeyFrom);
-            toret.nonce = api.ethbase.Int(nonceC+i);
-            toret.from = api.ethbase.Address(address);
-
-            console.log("pushing tx to array")
-            resolve(toret);
+    var objProm = contractCalls.map(function(c, _){
+      return new Promise(function(resolve, _){
+        console.log("address: " + c.contractAddress)
+        contractHelpers.contractsMetaAddressStream(c.contractName, c.contractAddress)
+        .pipe(contractHelpers.collect())
+        .on('data', function(data){
+          var contractJson = data[0];
+          resolve({
+            contractName: c.contractName,
+            contractJson: contractJson,
+            methodName: c.methodName,
+            args: c.args,
+            value: c.value,
+            txParams: c.txParams || {}
           })
         })
-      })
-
-      console.log("txs: " + JSON.stringify(txs))
-
-      Promise.all(txs)
-      .then(function(r){
-        console.log("Submitting txs for callList: " + JSON.stringify(r))
-        Promise.all(api.routes.submitTransactionList(r))
-            .then(function(r) {
-              if(resolve){
-                Promise.all(r.map(function(x){return x.txResult})).then(function(txRes){
-                  res.send(txRes);
-                })    
-              } else {
-                Promise.all(r.map(function(x){return x.txHash})).then(function(hash){
-                  res.send(hash);
-                })
-              }
-            })
-            .catch(function(err) { 
-              res.send("an error: " + err);
-            }); 
-      })  
+      });
     });
+
+    Promise.all(objProm).then(function(contractTxs){
+      Promise.all(api.routes.submitContractCallList(contractTxs, address, privkeyFrom))
+      .then(function(r) {
+        if(resolve){
+          Promise.all(r.map(function(x){return x.txResult})).then(function(txRes){
+            res.send(txRes);
+          })    
+        } else {
+          Promise.all(r.map(function(x){return x.txHash})).then(function(hash){
+            res.send(hash);
+          })
+        }
+      })
+      .catch(function(err) { 
+        res.send("an error: " + err);
+      }); 
+    })
   })
   .on('end', function(){
     console.log("no more users to process")
   })
 });
-
-
 
 /*
    arguments JSON object
