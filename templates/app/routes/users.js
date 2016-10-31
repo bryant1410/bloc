@@ -393,6 +393,7 @@ router.post('/:user/:address/uploadList', cors(), function(req, res) {
   }))
 
   .on('data', function(privkeyFrom) {
+  //  .pipe(es.map(function (privkeyFrom,cb) {
 
     var nonceC;
     api.ethbase.Account(address).nonce
@@ -400,39 +401,46 @@ router.post('/:user/:address/uploadList', cors(), function(req, res) {
     .then(function(){
 
       var txs = contracts.map(function(c, i){
-        console.log(i, nonceC)
+        console.log("Nonce: ", i, nonceC);
         var name = c.contractName;
         var args = c.args;
         var txParams = c.txParams || {};
         console.log("trying contract " + name + " with args " + args)
 
-        contractHelpers.contractsMetaAddressStream(name)
-        .pipe(contractHelpers.collect())
-        .on('data', function(data){
+        return new Promise(function(resolve, _){
+          contractHelpers.contractsMetaAddressStream(name)
+          .pipe(contractHelpers.collect())
+          .on('data', function(data){
 
-          var contractJson = data[0];
+            var contractJson = data[0];
 
-          var solObj = Solidity.attach(contractJson);
+            var solObj = Solidity.attach(contractJson);
 
-          var toret;
-          if (args.constructor === Object) {
-            console.log("calling constructor")
-            toret = solObj.construct(args);
-          } else {
-            console.log("calling constructor(2)")
-            toret = solObj.construct.apply(solObj, args);
-          }
-          // also set nonce here
+            var toret;
+            if (args.constructor === Object) {
+              console.log("calling constructor")
+              toret = solObj.construct(args);
+            } else {
+              console.log("calling constructor(2)")
+              toret = solObj.construct.apply(solObj, args);
+            }
 
-          toret.txParams(txParams);
-          toret.sign(privkeyFrom);
-          toret.from = api.ethbase.Address(address);
+            toret.txParams(txParams);
+            toret.sign(privkeyFrom);
+            toret.nonce = api.ethbase.Int(nonceC+i);
+            toret.from = api.ethbase.Address(address);
 
-          return toret;
+            console.log("pushing tx to array")
+            resolve(toret);
+          })
         })
       })
 
-      Promise.all(api.routes.submitTransactionList(txs))
+      console.log("txs: " + JSON.stringify(txs))
+
+      Promise.all(txs)
+      .then(function(r){
+        Promise.all(api.routes.submitTransactionList(r))
             .then(function(r) {
               if(resolve){
                 Promise.all(r.map(function(x){return x.txResult})).then(function(txRes){
@@ -447,7 +455,7 @@ router.post('/:user/:address/uploadList', cors(), function(req, res) {
             .catch(function(err) { 
               res.send("an error: " + err);
             }); 
-
+      })  
     });
   })
   .on('end', function(){
@@ -602,6 +610,160 @@ router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
     console.log("no more users to process")
   })
 })
+
+//  /users/<user>/<account>/callList
+// password: 1234,
+// resolve: true,
+// txs: [
+// {
+// ContractName: "Sample"
+// ContractAddress: "deadbeef"
+// MethodName: "something"
+// args: {},
+// value : 123
+// },
+// ...
+// ]
+
+router.options('/:user/:address/callList', cors()); // enable pre-flight request for POST request
+router.post('/:user/:address/callList', jsonParser, cors(), function(req, res) {
+
+  var password = req.body.password;
+  var address = req.params.address;
+  var user = req.params.user;
+
+  var contractCalls = req.body.txs;
+  var resolve = req.body.resolve;
+
+  contractHelpers.userKeysStream(user)
+  .pipe(es.map(function (data,cb) {
+
+    if (data.addresses[0] == address) {
+      console.log("user address found"); 
+      cb(null,data); 
+    }
+    else{
+      console.log("address does not exist for user");
+      cb();
+    } 
+  }))
+  .pipe(es.map(function(data, cb) {
+
+    var privkeyFrom;
+    try { 
+      var store = new lw.keystore.deserialize(JSON.stringify(data));
+      privkeyFrom = store.exportPrivateKey(address, password);
+    } catch (e) {
+      res.send("address not found or password incorrect");
+    }
+
+    cb(null, privkeyFrom);
+    
+  }))
+
+  .on('data', function(privkeyFrom) {
+
+    var nonceC;
+    api.ethbase.Account(address).nonce
+    .then(function(n) { console.log("Setting nonce to " + n); nonceC = n; })
+    .then(function(){
+
+      var txs = contractCalls.map(function(c, i){
+        console.log("Nonce: ", i, nonceC);
+
+        var name = c.contractName;
+        var address = c.contractAddress;
+        var method = c.methodName;
+        var args = c.args;
+        var value = c.value;
+        var txParams = c.txParams || {};
+
+        console.log("calling " + name + "." + method + "(" + args + ")")
+
+        return new Promise(function(resolve, _){
+          contractHelpers.contractsMetaAddressStream(name, address)
+          .pipe(contractHelpers.collect())
+          .on('data', function(data){
+
+            var contractJson = data[0];
+
+            var contract = Solidity.attach(contractJson);
+
+            value = Math.max(0, value)
+            if (value != undefined) {
+              var pv = units.convertEth(value).from("ether").to("wei" );
+              console.log("pv: " + pv.toString(10))
+            }
+            txParams.value = pv.toString(10);
+
+            if(contract.state[method] != undefined){
+              console.log("args: " + JSON.stringify(args))
+              try {
+                var toret = contract.state[method](args).txParams(txParams);
+              } catch (error){
+                console.log("failed to look at state for contract: " + error)
+                res.send("failed to look at state for contract: " + error)
+                return;
+              }
+
+              console.log("Making function call now")
+              //contractstate.callFrom(privkeyFrom)
+              // .then(function (txResult) {
+              //   var string = (txResult && Buffer.isBuffer(txResult)) ? txResult.toString('hex') : txResult+"";
+              //   console.log("txResult", typeof txResult, txResult, string);
+              //   res.send("transaction returned: " + string);
+              // })
+              // .catch(function(err) { 
+              //   console.log("error calling contract: " + err)
+              //   res.send(err);
+              //   return;
+              // });
+              
+            } else {
+              console.log("contract " + contractName + " doesn't have method: " + method);
+              res.send("contract " + contractName + " doesn't have method: " + method);
+              return;
+            } 
+
+            toret.txParams(txParams);
+            toret.sign(privkeyFrom);
+            toret.nonce = api.ethbase.Int(nonceC+i);
+            toret.from = api.ethbase.Address(address);
+
+            console.log("pushing tx to array")
+            resolve(toret);
+          })
+        })
+      })
+
+      console.log("txs: " + JSON.stringify(txs))
+
+      Promise.all(txs)
+      .then(function(r){
+        Promise.all(api.routes.submitTransactionList(r))
+            .then(function(r) {
+              if(resolve){
+                Promise.all(r.map(function(x){return x.txResult})).then(function(txRes){
+                  res.send(txRes);
+                })    
+              } else {
+                Promise.all(r.map(function(x){return x.txHash})).then(function(hash){
+                  res.send(hash);
+                })
+              }
+            })
+            .catch(function(err) { 
+              res.send("an error: " + err);
+            }); 
+      })  
+    });
+  })
+  .on('end', function(){
+    console.log("no more users to process")
+  })
+});
+
+
 
 /*
    arguments JSON object
