@@ -261,6 +261,7 @@ router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
 
           //contractHelpers.resolveTxs(txs, res.send, resolve)
 
+          console.log("Submitting txs for sendList: " + JSON.stringify(r))
           Promise.all(api.routes.submitTransactionList(txs))
           .then(function(r) {
             if(resolve){
@@ -440,6 +441,7 @@ router.post('/:user/:address/uploadList', cors(), function(req, res) {
 
       Promise.all(txs)
       .then(function(r){
+        console.log("Submitting txs for uploadList: " + JSON.stringify(r))
         Promise.all(api.routes.submitTransactionList(r))
             .then(function(r) {
               if(resolve){
@@ -740,6 +742,7 @@ router.post('/:user/:address/callList', jsonParser, cors(), function(req, res) {
 
       Promise.all(txs)
       .then(function(r){
+        console.log("Submitting txs for callList: " + JSON.stringify(r))
         Promise.all(api.routes.submitTransactionList(r))
             .then(function(r) {
               if(resolve){
