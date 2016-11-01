@@ -188,15 +188,17 @@ router.post('/:user', cors(), function(req, res) {
  * true, it will return the reult of the transaction. Otherwise it wil
  * only return the hash.
  * The input is:
- * [
+ * {
  *  "password":"1234",
  *  "resolve":"true",
- * {
- *  toAddress: "deadbeef"
- *  value: 2
- * },
- * ...
- * ]
+ *  "txs": [
+ *    {
+ *      toAddress: "deadbeef"
+ *      value: 2
+ *    },
+ *    {...}
+ *  ]
+ * }
  */ 
 router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
 
@@ -340,15 +342,18 @@ router.post('/:user/:address/send', cors(), function(req, res) {
  * true, it will return the reult of the transaction. Otherwise it wil
  * only return the hash.
  * The input is:
- * [
- *  "password":"1234",
- *  "resolve":"true",
  * {
- *  contractName: "Sample"
- *  args: {}
- * },
- * ...
- * ]
+ *   "password":"1234",
+ *   "resolve":"true",
+ *   "contracts":
+ *   [
+ *     {
+ *       contractName: "Sample"
+ *       args: {}
+ *     },
+ *     {...}
+ *   ]
+ * }
  */ 
 router.options('/:user/:address/uploadList', cors()); // enable pre-flight request for DELETE request
 router.post('/:user/:address/uploadList', cors(), function(req, res) {
@@ -577,18 +582,21 @@ router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
  * true, it will return the reult of the transaction. Otherwise it wil
  * only return the hash.
  * The input is:
- * [
- *  "password":"1234",
- *  "resolve":"true",
  * {
- *  contractName: "Sample"
- *  contraftAddress: "deadbeef",
- *  methodName: "something",
- *  value: 123,
- *  args: {}
- * },
- * ...
- * ]
+ *   "password":"1234",
+ *   "resolve":"true",
+ *   "txs":
+ *   [
+ *     {
+ *       contractName: "Sample"
+ *       contractAddress: "deadbeef",
+ *       methodName: "something",
+ *       value: 123,
+ *       args: {}
+ *      },
+ *      {...}
+ *   ]
+ * }
  */ 
 router.options('/:user/:address/callList', cors()); // enable pre-flight request for POST request
 router.post('/:user/:address/callList', jsonParser, cors(), function(req, res) {
