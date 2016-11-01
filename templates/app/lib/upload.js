@@ -48,9 +48,9 @@ function upload(contractName, privkey, argObj, params) {
         ).return(arr);
     })
    .catch(function (err) { 
-     console.log("there was an error: " + JSON.stringify(err));
+     console.log("there was an error: " + err);
      clearInterval(id); 
-     Promise.reject(JSON.stringify(err));
+     Promise.reject(err.toString());
    });
 
   return toRet;
