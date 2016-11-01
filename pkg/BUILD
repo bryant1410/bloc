@@ -13,7 +13,7 @@ mkdir -p $blochome
 find -maxdepth 1 -mindepth 1 -name pkg -prune -o -execdir cp -a -t $blochome '{}' +
 cd $blochome
 rm -rf .git{,attributes,ignore}
-npm install --quiet
+npm update --quiet 
 
 mkdir -p $projdir
 cd $projdir
