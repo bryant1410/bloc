@@ -17,6 +17,7 @@ npm update --quiet
 
 mkdir -p $projdir
 cd $projdir
+rm -rf $projhome
 $blochome/bin/main.js init --optIn --appName bloc-server --developer explorer --apiURL 'http://%APIURL%';
 cd $projhome
 npm install --quiet

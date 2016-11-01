@@ -833,6 +833,7 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
         } else {
           console.log("Making function call now")
           contractstate.callFrom(privkeyFrom)
+          .get("returnValue")
           .then(function (txResult) {
             var string = (txResult && Buffer.isBuffer(txResult)) ? txResult.toString('hex') : txResult+"";
             console.log("txResult", typeof txResult, txResult, string);

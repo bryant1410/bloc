@@ -30,8 +30,10 @@ function upload(contractName, privkey, argObj, params) {
         toret = solObj.construct.apply(solObj, argObj);
       }
       //console.log("uploading with privKey: " + privkey)
+      // We now have handlers.enable == true in routes/users.js
       return toret.txParams(params).callFrom(privkey);
     }).
+    get("contract").
     then(function(contrObj){
       var addr = contrObj.account.address.toString();
       var uploadedFile = path.join('app', 'meta', contractName, addr + ".json");
