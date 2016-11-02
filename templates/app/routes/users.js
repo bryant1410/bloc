@@ -204,7 +204,7 @@ router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
   var user = req.params.user;  
   var address = req.params.address;
 
-  var resolve = req.body.resolve == "true";
+  var resolve = req.body.resolve == "true" || req.body.resolve == true;
   var found = false;
 
   if (typeof req.body.password === 'undefined' || req.body.password === '') {
@@ -356,7 +356,7 @@ router.post('/:user/:address/uploadList', cors(), function(req, res) {
   var user = req.params.user;  
   var address = req.params.address;
 
-  var resolve = req.body.resolve == "true";
+  var resolve = req.body.resolve == "true" || req.body.resolve == true;
   var password = req.body.password;
 
   var contracts = req.body.contracts;
@@ -598,7 +598,7 @@ router.post('/:user/:address/callList', jsonParser, cors(), function(req, res) {
   var user = req.params.user;
 
   var contractCalls = req.body.txs;
-  var resolve = req.body.resolve == "true";
+  var resolve = req.body.resolve == "true" || req.body.resolve == true;
 
   contractHelpers.userKeysStream(user)
   .pipe(es.map(function (data,cb) {
@@ -780,7 +780,7 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
       value = Math.max(0, value)
       if (value != undefined) {
         var pv = units.convertEth(value).from("ether").to("wei" );
-        console.log("pv: " + pv.toString(10))
+        //console.log("pv: " + pv.toString(10))
       }
       txParams.value = pv.toString(10);
       console.log("trying to invoke contract")
