@@ -29,7 +29,7 @@ The following are suggested improvements to `bloc`. They are mostly independent 
 
 ### Medium effort:
 
-+ Refactor the routes to only use the newer `*list` functions. Write specialized routes replacing the old routes to cover the API spec. (TODO @kejace: write a detailed proposal on what to do here).
++ Refactor the routes to only use the newer `*list` functions. Write specialized routes replacing the old routes to cover the API spec. (TODO @kejace: write a detailed proposal on what to do here. This will be work in pair with @charles).
 + Replace disk-backend with a proper DB. This requires(?) the dockerization too (already implemented in `cirrus`)
 + Convert to `TypeScript` or enforce `@flow` type annotations. 
 
