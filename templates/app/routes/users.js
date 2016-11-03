@@ -97,7 +97,7 @@ router.post('/:user', cors(), function(req, res) {
     var fileName = path.join(thePath, store.addresses[0] + '.json');
       
     mkdirp(thePath, function (err) { 
-      if (err) { console.err(err); res.send(err); }
+      if (err) { console.log(err); res.send(err); }
       else { 
         fs.writeFile(fileName, store.serialize(), function() { 
           console.log("wrote: " + fileName);
@@ -146,7 +146,7 @@ router.post('/:user', cors(), function(req, res) {
     console.log("filename: " + fileName)
 
     mkdirp(thePath, function (err) { 
-      if (err) { console.err(err); res.send(err); }
+      if (err) { console.log(err); res.send(err); }
       else { 
         fs.writeFile(fileName, JSON.stringify(json), function() { 
           res.send(address);
@@ -171,7 +171,7 @@ router.post('/:user', cors(), function(req, res) {
     var fileName = path.join(thePath, newAddress + '.json');
     
     mkdirp(thePath, function (err) { 
-      if (err) { console.err(err); res.send(err); }
+      if (err) { console.log(err); res.send(err); }
       else { 
         fs.writeFile(fileName, store.serialize(), function() { 
           res.send(newAddress);
@@ -804,7 +804,7 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
           var filename = path.join(pp, dt+".json");
           mkdirp(pp, function (err) {   
             if (err) { 
-              console.err(err); 
+              console.log(err); 
               res.send(err); 
             } else { 
               console.log('path: ' + pp)
