@@ -18,8 +18,8 @@ npm update --quiet
 mkdir -p $projdir
 cd $projdir
 rm -rf $projhome
-$blochome/bin/main.js init --optIn --appName bloc-server --developer explorer --apiURL 'http://%APIURL%';
+node $blochome/bin/main.js init --optIn --appName bloc-server --developer explorer --apiURL 'http://%APIURL%';
 cd $projhome
 npm install --quiet
-node_modules/bower/bin/bower install --allow-root
+node node_modules/bower/bin/bower install --allow-root
 
