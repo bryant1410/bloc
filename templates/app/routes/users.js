@@ -9,7 +9,7 @@ var lw = require('eth-lightwallet');
 var es = require('event-stream');
 var del = require('del');
 var Promise = require('bluebird');
-var fs = Promise.promisifyAll(require('fs')); 
+var fs = Promise.promisifyAll(require('fs'));
 var mkdirp = Promise.promisifyAll(require('mkdirp'));
 
 var path = require('path');
@@ -45,7 +45,7 @@ function float2rat(x) {
     aux = k1; k1 = a*k1+k2; k2 = aux;
     b = 1/(b-a);
   } while (Math.abs(x-h1/k1) > x*tolerance);
-    
+
   return h1+"/"+k1;
 }
 
@@ -61,7 +61,7 @@ router.get('/:user', cors(), function(req, res) {
   var user = req.params.user;
 
   contractHelpers.userKeysStream(user)
-      .pipe( es.map( function (data, cb) { 
+      .pipe( es.map( function (data, cb) {
         cb(null, data.addresses[0]);
       }))
       .pipe(contractHelpers.collect())
@@ -78,7 +78,7 @@ router.post('/:user', cors(), function(req, res) {
   var password = req.body.password;
 
   if (req.body.faucet === '1'){
-    if (typeof password === 'undefined' || password === '') { 
+    if (typeof password === 'undefined' || password === '') {
       res.send('password required for faucet call');
       return;
     }
@@ -88,30 +88,30 @@ router.post('/:user', cors(), function(req, res) {
     store.generateNewAddress(password);
 
     var fileName = path.join(thePath, store.addresses[0] + '.json');
-      
-    mkdirp(thePath, function (err) { 
+
+    mkdirp(thePath, function (err) {
       if (err) { console.log(err); res.send(err); }
-      else { 
-        fs.writeFile(fileName, store.serialize(), function() { 
+      else {
+        fs.writeFile(fileName, store.serialize(), function() {
           console.log("wrote: " + fileName);
         });
       }
     });
-   
+
     api.query.serverURI = process.env.API || apiURI;
     console.log("hitting faucet for " + store.addresses[0]);
-      
+
     api.routes.faucet(store.addresses[0])
       .then(function(_) {
         res.send(store.addresses[0]);
       })
-      .catch(function(err) { 
+      .catch(function(err) {
         res.send(err);
       });
 
   } else if(req.body.remove === '1'){
 
-    if (typeof password === 'undefined' || password === '') { 
+    if (typeof password === 'undefined' || password === '') {
       // TODO should really check password here?
       res.send('password required for removal call');
       return;
@@ -138,35 +138,35 @@ router.post('/:user', cors(), function(req, res) {
     var fileName = path.join(thePath, address + '.json');
     console.log("filename: " + fileName)
 
-    mkdirp(thePath, function (err) { 
+    mkdirp(thePath, function (err) {
       if (err) { console.log(err); res.send(err); }
-      else { 
-        fs.writeFile(fileName, JSON.stringify(json), function() { 
+      else {
+        fs.writeFile(fileName, JSON.stringify(json), function() {
           res.send(address);
         });
       }
     });
 
   } else {
-    if (typeof password === 'undefined' || password === '') { 
+    if (typeof password === 'undefined' || password === '') {
       res.send('password required for key generation');
       return;
     }
     console.log("just registering name, no faucet called");
 
     var seed = lw.keystore.generateRandomSeed();
-  
+
     var store = new lw.keystore(seed, password);
     store.generateNewAddress(password);
 
     var newAddress = store.addresses[0];
 
     var fileName = path.join(thePath, newAddress + '.json');
-    
-    mkdirp(thePath, function (err) { 
+
+    mkdirp(thePath, function (err) {
       if (err) { console.log(err); res.send(err); }
-      else { 
-        fs.writeFile(fileName, store.serialize(), function() { 
+      else {
+        fs.writeFile(fileName, store.serialize(), function() {
           res.send(newAddress);
         });
       }
@@ -191,11 +191,11 @@ router.post('/:user', cors(), function(req, res) {
  *    {...}
  *  ]
  * }
- */ 
+ */
 router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
 
   var password = req.body.password;
-  var user = req.params.user;  
+  var user = req.params.user;
   var address = req.params.address;
 
   var resolve = req.body.resolve == "true" || req.body.resolve == true;
@@ -209,30 +209,30 @@ router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
   contractHelpers.userKeysStream(user)
       .pipe(es.map(function (data,cb) {
         if (data.addresses[0] == address) {
-          console.log("user address found"); 
-          cb(null,data); 
+          console.log("user address found");
+          cb(null,data);
         }
         else{
-          console.err("address does not exist for user");
+          console.log("address does not exist for user");
           res.send("address does not exist for user")
           cb();
-        } 
+        }
       }))
       .on('data', function (data) {
-        api.query.serverURI = process.env.API || apiURI;               
-        found = true; 
-        try { 
+        api.query.serverURI = process.env.API || apiURI;
+        found = true;
+        try {
           var store = new lw.keystore.deserialize(JSON.stringify(data));
           var privkeyFrom = store.exportPrivateKey(address, password);
         } catch (e) {
-          console.err("invalid address or incorrect password");
+          console.log("invalid address or incorrect password");
           res.send("invalid address or incorrect password");
           return;
         }
         var toTx = req.body.txs.map(function(x, _) {
           var strVal = float2rat(x.value);
           var h1 = strVal.split('/')[0];
-          var h2 = strVal.split('/')[1];        
+          var h2 = strVal.split('/')[1];
           var valWei = units.convertEth(h1,h2).from("ether").to("wei");
           return {toAddress: x.toAddress, value: valWei};
         })
@@ -242,7 +242,7 @@ router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
           if(resolve){
             Promise.all(r.map(function(x){return x.txResult})).then(function(txRes){
               res.send(txRes);
-            })    
+            })
           } else {
             Promise.all(r.map(function(x){return x.txHash})).then(function(hash){
               res.send(hash);
@@ -251,7 +251,7 @@ router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
         })
         .catch(function(err) {
           res.status(500).send("an error: " + err);
-        }); 
+        });
       })
       .on('end', function () {
         if (!found) res.send('address ' + address + ' for user ' + user + ' not found');
@@ -261,7 +261,7 @@ router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
 
 router.post('/:user/:address/send', cors(), function(req, res) {
   var password = req.body.password;
-  var user = req.params.user;  
+  var user = req.params.user;
   var address = req.params.address;
   var toAddress = req.body.toAddress;
   var value = req.body.value;
@@ -291,28 +291,28 @@ router.post('/:user/:address/send', cors(), function(req, res) {
   contractHelpers.userKeysStream(user)
       .pipe(es.map(function (data,cb) {
         if (data.addresses[0] == address) {
-          console.log("user address found"); 
-          cb(null,data); 
+          console.log("user address found");
+          cb(null,data);
         }
         else{
-          console.err("address does not exist for user");
+          console.log("address does not exist for user");
           res.send("address does not exist for user")
           cb();
-        } 
+        }
       }))
       .on('data', function (data) {
-        api.query.serverURI = process.env.API || apiURI;               
-        found = true; 
-        try { 
+        api.query.serverURI = process.env.API || apiURI;
+        found = true;
+        try {
           var store = new lw.keystore.deserialize(JSON.stringify(data));
           var privkeyFrom = store.exportPrivateKey(address, password);
         } catch (e) {
-          console.err("invalid address or incorrect password");
-          res.send("invalid address or incorrect password");     
+          console.log("invalid address or incorrect password");
+          res.send("invalid address or incorrect password");
           return;
         }
         var valWei = units.convertEth(h1,h2).from("ether").to("wei");
-        var valueTX = Transaction({"value" : valWei, 
+        var valueTX = Transaction({"value" : valWei,
                                    "gasLimit" : Int(21000),
                                    "gasPrice" : Int(50000000000)});
         valueTX.send(privkeyFrom, toAddress)
@@ -320,9 +320,9 @@ router.post('/:user/:address/send', cors(), function(req, res) {
           console.log("transaction result: " + txResult.message);
           res.send(JSON.stringify(valueTX));
         })
-        .catch(function(err) { 
+        .catch(function(err) {
           res.send(err);
-        }); 
+        });
       })
       .on('end', function () {
         if (!found) res.send('address ' + address + ' for user ' + user + ' not found');
@@ -347,11 +347,11 @@ router.post('/:user/:address/send', cors(), function(req, res) {
  *     {...}
  *   ]
  * }
- */ 
+ */
 router.options('/:user/:address/uploadList', cors()); // enable pre-flight request for DELETE request
 router.post('/:user/:address/uploadList', cors(), function(req, res) {
 
-  var user = req.params.user;  
+  var user = req.params.user;
   var address = req.params.address;
 
   var resolve = req.body.resolve == "true" || req.body.resolve == true;
@@ -362,18 +362,18 @@ router.post('/:user/:address/uploadList', cors(), function(req, res) {
   contractHelpers.userKeysStream(user)
   .pipe(es.map(function (data,cb) {
     if (data.addresses[0] == address) {
-      console.log("user address found"); 
-      cb(null,data); 
+      console.log("user address found");
+      cb(null,data);
     }
     else{
-      console.err("address does not exist for user");
+      console.log("address does not exist for user");
       res.send("address does not exist for user")
       cb();
-    } 
+    }
   }))
   .on('data', function (data) {
     var privkeyFrom;
-    try { 
+    try {
       var store = new lw.keystore.deserialize(JSON.stringify(data));
       privkeyFrom = store.exportPrivateKey(address, password);
     } catch (e) {
@@ -386,7 +386,7 @@ router.post('/:user/:address/uploadList', cors(), function(req, res) {
         .on('data', function(data){
           var contractJson = data[0];
           resolve({
-            contractJson: contractJson, 
+            contractJson: contractJson,
             contractName: c.contractName,
             args: c.args,
             txParams: c.txParams || {}
@@ -401,16 +401,16 @@ router.post('/:user/:address/uploadList', cors(), function(req, res) {
         if(resolve){
           Promise.all(r.map(function(x){return x.txResult})).then(function(txRes){
             res.send(txRes);
-          })    
+          })
         } else {
           Promise.all(r.map(function(x){return x.txHash})).then(function(hash){
             res.send(hash);
           })
         }
       })
-      .catch(function(err) { 
+      .catch(function(err) {
         res.send("an error: " + err);
-      }); 
+      });
     })
   })
   .on('end', function(){
@@ -421,7 +421,7 @@ router.post('/:user/:address/uploadList', cors(), function(req, res) {
 /* create contract from source */
 router.options('/:user/:address/contract', cors()); // enable pre-flight request for DELETE request
 router.post('/:user/:address/contract', cors(), function(req, res) {
-  var user = req.params.user;  
+  var user = req.params.user;
   var address = req.params.address;
   var txParams = req.body.txParams || {};
   var contract = req.body.contract;
@@ -441,27 +441,27 @@ router.post('/:user/:address/contract', cors(), function(req, res) {
   contractHelpers.userKeysStream(user)
       .pipe(es.map(function (data,cb) {
         if (data.addresses[0] == address) {
-          console.log("user address found"); 
-          cb(null,data); 
+          console.log("user address found");
+          cb(null,data);
         }
         else{
-          console.err("address does not exist for user");
+          console.log("address does not exist for user");
           res.send("address does not exist for user")
           cb();
-        } 
+        }
       }))
       .on('data', function (data) {
         console.log("data is: " + data.addresses[0])
-        api.query.serverURI = process.env.API || apiURI;               
-        found = true; 
+        api.query.serverURI = process.env.API || apiURI;
+        found = true;
 
-        try { 
+        try {
           var store = new lw.keystore.deserialize(JSON.stringify(data));
           var privkeyFrom = store.exportPrivateKey(address, password);
-          
+
           console.log("About to upload contract")
         } catch (e) {
-          console.err('invalid address or incorrect password');
+          console.log('invalid address or incorrect password');
           res.send('invalid address or incorrect password');
           return;
         }
@@ -478,14 +478,14 @@ router.post('/:user/:address/contract', cors(), function(req, res) {
             console.log("uploading " + contract)
             return upload(contract, privkeyFrom, args, txParams);
           }
-          
+
         }).then(function (arr) {
           var addressOfContract = arr[3];
           console.log("address of contract: " + addressOfContract);
           res.send(addressOfContract);
         }).catch(function(e) {
           var message = "error uploading contract - your contract probably didn't compile (" + e + ")";
-          console.err(message);
+          console.log(message);
           res.send(message);
         });
       })
@@ -505,7 +505,7 @@ router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
   var src = req.body.src;
   var address = req.params.address;
   var user = req.params.user;
-  
+
   var txParams = req.params.txParams;
 
   var name = req.body.name;
@@ -516,18 +516,18 @@ router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
   contractHelpers.userKeysStream(user)
   .pipe(es.map(function (data,cb) {
     if (data.addresses[0] == address) {
-      console.log("user address found"); 
-      cb(null,data); 
+      console.log("user address found");
+      cb(null,data);
     }
     else{
-      console.err("address does not exist for user");
+      console.log("address does not exist for user");
       res.send("address does not exist for user")
       cb();
-    } 
+    }
   }))
   .pipe(es.map(function(data, cb) {
     var privkeyFrom;
-    try { 
+    try {
       var store = new lw.keystore.deserialize(JSON.stringify(data));
       privkeyFrom = store.exportPrivateKey(address, password);
     } catch (e) {
@@ -537,7 +537,7 @@ router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
   }))
   .on('data', function(privkeyFrom) {
     api.Solidity(src)
-    .then(function(solObjs) { 
+    .then(function(solObjs) {
       var solObj = solObjs[contract][name]
       console.log("have solidity object: " + JSON.stringify(solObj))
       var toret;
@@ -565,7 +565,7 @@ router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
 })
 
 /**
- * Takes a list of contract names, addresses and functions and 
+ * Takes a list of contract names, addresses and functions and
  * (optionally) function agruments.
  * It submits all these transactions as a signed batch. If resolve is
  * true, it will return the reult of the transaction. Otherwise it wil
@@ -586,7 +586,7 @@ router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
  *      {...}
  *   ]
  * }
- */ 
+ */
 router.options('/:user/:address/callList', cors()); // enable pre-flight request for POST request
 router.post('/:user/:address/callList', jsonParser, cors(), function(req, res) {
 
@@ -601,19 +601,19 @@ router.post('/:user/:address/callList', jsonParser, cors(), function(req, res) {
   .pipe(es.map(function (data,cb) {
 
     if (data.addresses[0] == address) {
-      console.log("user address found"); 
-      cb(null,data); 
+      console.log("user address found");
+      cb(null,data);
     }
     else{
       console.log("address does not exist for user");
       res.send("address does not exist for user")
       cb();
-    } 
+    }
   }))
   .on('data', function(data) {
 
     var privkeyFrom;
-    try { 
+    try {
       var store = new lw.keystore.deserialize(JSON.stringify(data));
       privkeyFrom = store.exportPrivateKey(address, password);
     } catch (e) {
@@ -645,16 +645,16 @@ router.post('/:user/:address/callList', jsonParser, cors(), function(req, res) {
         if(resolve){
           Promise.all(r.map(function(x){return x.txResult})).then(function(txRes){
             res.send(txRes);
-          })    
+          })
         } else {
           Promise.all(r.map(function(x){return x.txHash})).then(function(hash){
             res.send(hash);
           })
         }
       })
-      .catch(function(err) { 
+      .catch(function(err) {
         res.send("an error: " + err);
-      }); 
+      });
     })
   })
   .on('end', function(){
@@ -693,23 +693,23 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
 
     if (data.addresses[0] == address) {
       console.log("user address found");
-      found = true; cb(null,data); 
+      found = true; cb(null,data);
     }
     else{
-      console.err("address does not exist for user");
+      console.log("address does not exist for user");
       res.send("address does not exist for user")
       cb();
-    } 
+    }
   }))
   .pipe(es.map(function(data, cb) {
 
     if (data.token) {
-      console.log("actually called through device - saving in queue"); 
+      console.log("actually called through device - saving in queue");
       cb(null, data)
-    } else { 
-  
+    } else {
+
       var privkeyFrom;
-      try { 
+      try {
         var store = new lw.keystore.deserialize(JSON.stringify(data));
         privkeyFrom = store.exportPrivateKey(address, password);
       } catch (e) {
@@ -757,15 +757,15 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
           var dt = date.getTime();
           var pp = path.join('app', 'pending', address);
           var filename = path.join(pp, dt+".json");
-          mkdirp(pp, function (err) {   
-            if (err) { 
-              console.log(err); 
-              res.send(err); 
-            } else { 
+          mkdirp(pp, function (err) {
+            if (err) {
+              console.log(err);
+              res.send(err);
+            } else {
               console.log('path: ' + pp)
               console.log('filename: ' + filename)
               var callData = {
-                contractName: contractName, 
+                contractName: contractName,
                 method: method,
                 args: args,
                 time: dt,
@@ -778,8 +778,8 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
                                     , "contract": JSON.parse(contract.detach())
                                     , "call":callData
               };
-              
-              fs.writeFile(filename, JSON.stringify(allData), function() { 
+
+              fs.writeFile(filename, JSON.stringify(allData), function() {
                 console.log("wrote: " + filename);
                 res.send("put transaction in queue for: " + address)
               });
@@ -794,24 +794,24 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
             console.log("txResult", typeof txResult, txResult, string);
             res.send("transaction returned: " + string);
           })
-          .catch(function(err) { 
-            console.err("error calling contract: " + err)
+          .catch(function(err) {
+            console.log("error calling contract: " + err)
             res.send(err);
             return;
           });
         }
       } else {
-        console.err("contract " + contractName + " doesn't have method: " + method);
+        console.log("contract " + contractName + " doesn't have method: " + method);
         res.send("contract " + contractName + " doesn't have method: " + method);
         return;
-      } 
+      }
     }).on('end', function(){
       console.log("no more contract(s) found at address")
     })
   })
   .on('end', function () {
     if (!found){
-      console.err('user not found: ' + user);
+      console.log('user not found: ' + user);
       res.send('user not found: ' + user);
     }
   })
