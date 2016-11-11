@@ -214,7 +214,7 @@ router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
         }
         else{
           console.log("address does not exist for user");
-          res.send("address does not exist for user")
+
           cb();
         }
       }))
@@ -296,7 +296,7 @@ router.post('/:user/:address/send', cors(), function(req, res) {
         }
         else{
           console.log("address does not exist for user");
-          res.send("address does not exist for user")
+
           cb();
         }
       }))
@@ -367,7 +367,7 @@ router.post('/:user/:address/uploadList', cors(), function(req, res) {
     }
     else{
       console.log("address does not exist for user");
-      res.send("address does not exist for user")
+
       cb();
     }
   }))
@@ -446,7 +446,7 @@ router.post('/:user/:address/contract', cors(), function(req, res) {
         }
         else{
           console.log("address does not exist for user");
-          res.send("address does not exist for user")
+
           cb();
         }
       }))
@@ -521,7 +521,7 @@ router.post('/:user/:address/import', jsonParser, cors(), function(req, res) {
     }
     else{
       console.log("address does not exist for user");
-      res.send("address does not exist for user")
+
       cb();
     }
   }))
@@ -606,7 +606,7 @@ router.post('/:user/:address/callList', jsonParser, cors(), function(req, res) {
     }
     else{
       console.log("address does not exist for user");
-      res.send("address does not exist for user")
+
       cb();
     }
   }))
@@ -693,16 +693,15 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
 
     if (data.addresses[0] == address) {
       console.log("user address found");
-      found = true; cb(null,data);
+      found = true;
+      cb(null,data);
     }
     else{
       console.log("address does not exist for user");
-      res.send("address does not exist for user")
       cb();
     }
   }))
   .pipe(es.map(function(data, cb) {
-
     if (data.token) {
       console.log("actually called through device - saving in queue");
       cb(null, data)
@@ -720,7 +719,6 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
     }
   }))
   .on('data', function(privkeyFrom) {
-
     var cmas = contractHelpers.contractsMetaAddressStream(contractName, contractAddress);
     // if(cmas === null) {
     //   //console.log("no contract found at that address");
