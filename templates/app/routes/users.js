@@ -638,16 +638,30 @@ router.post('/:user/:address/callList', jsonParser, cors(), function(req, res) {
         })
       });
     });
-
     Promise.all(objProm).then(function(contractTxs){
-      Promise.all(api.routes.submitContractCallList(contractTxs, address, privkeyFrom))
+
+      // var reflectedPromises = api.routes.submitContractCallList(contractTxs, address, privkeyFrom);
+      // // Promise.all(api.routes.submitContractCallList(contractTxs, address, privkeyFrom)
+      api.routes.submitContractCallList(contractTxs, address, privkeyFrom)
       .then(function(r) {
         if(resolve){
-          Promise.all(r.map(function(x){return x.txResult})).then(function(txRes){
+          Promise.all(r.map(function(x){
+            if(x.error){
+              return x;
+            }else {
+              return x.txResult;
+            }
+          })).then(function(txRes){
+            console.log(txRes)
             res.send(txRes);
           })
         } else {
-          Promise.all(r.map(function(x){return x.txHash})).then(function(hash){
+          Promise.all(r.map(function(x) {
+            if(x.error){
+              return x;
+            }
+            return x.txHash
+          })).then(function(hash){
             res.send(hash);
           })
         }
@@ -693,8 +707,7 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
 
     if (data.addresses[0] == address) {
       console.log("user address found");
-      found = true;
-      cb(null,data);
+      found = true; cb(null,data);
     }
     else{
       console.log("address does not exist for user");
@@ -702,6 +715,7 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
     }
   }))
   .pipe(es.map(function(data, cb) {
+
     if (data.token) {
       console.log("actually called through device - saving in queue");
       cb(null, data)
@@ -719,6 +733,7 @@ router.post('/:user/:address/contract/:contractName/:contractAddress/call', json
     }
   }))
   .on('data', function(privkeyFrom) {
+
     var cmas = contractHelpers.contractsMetaAddressStream(contractName, contractAddress);
     // if(cmas === null) {
     //   //console.log("no contract found at that address");
