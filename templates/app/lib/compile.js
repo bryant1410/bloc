@@ -1,14 +1,20 @@
 var fs = require('fs');
 var Solidity = require('blockapps-js').Solidity;
-// var rp = require('request-promise');
+var rp = require('request-promise');
 var path = require('path');
 var mkdirp = require('mkdirp');
 var chalk = require('chalk');
-// var yamlConfig = require('./yaml-config');
+var yamlConfig = require('./yaml-config');
 var fs = require('fs');
 
 function compileSol(solSrc) {
-  return Solidity(solSrc).then(function(solObj) {
+  var compile;
+  if(solSrc.source || solSrc.searchable) {
+    compile = Solidity(solSrc.source);
+  } else {
+    compile = Solidity(solSrc);
+  }
+  return compile.then(function(solObj) {
     var multi = false;
     var dirs = [];
 
@@ -47,6 +53,39 @@ function compileSol(solSrc) {
         fs.writeFileSync(multiPath, contract.detach());
 
         console.log(chalk.green("wrote: ") + multiPath);
+
+        if(solSrc.searchable) {
+          console.log('searchable exists');
+          var detached = contract.detach();
+          for(var i=0; i < solSrc.searchable.length; i++){
+            console.log('solSrc.searchable[i]' + i, solSrc.searchable[i],
+              'detached.name', detached.name);
+            if(solSrc.searchable[i] === contractName) {
+              console.log('found a match');
+
+              //BEWARE: removing strato-api from apiUrl. Likely need a cirrusUrl
+              //field in config.yaml.
+              var apiUrl = yamlConfig.readYaml('config.yaml').apiURL;
+              apiUrl = apiUrl.slice(0,apiUrl.lastIndexOf('/'));
+              var options = {
+                method: 'POST',
+                uri: apiUrl + ':3333',
+                body: detached,
+                headers: {
+                  'Content-Type': 'application/json'
+                }
+              };
+                // json: true
+              rp(options).then(function(_){
+                console.log('Successfully created table in cirrus for contract ' + contractName);
+              })
+              .catch(function(err){
+                console.log('Error Creating table in cirrus: ', err);
+              });
+            }
+            break;
+          }
+        }
         // var options = {
         //   method: 'POST',
         //   uri: yamlConfig.readYaml('config.yaml').apiURL + ':3333',
@@ -64,7 +103,6 @@ function compileSol(solSrc) {
         // });
       }
     });
-    console.log(theObj);
     return theObj;
   }).
   catch(function(e) {
