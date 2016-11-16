@@ -371,9 +371,33 @@ router.get('/:contractName/all/states', cors(), function (req, res) {
           }));
 });
 
+
+
 /**
- * /compile takes an array of contractSources
- * returns: array of contract names and their code hashes
+ * /compile takes an array contain objects with properties
+ * `source` and `searchable`.
+ *
+ * `source`: an array of <contract code strings> or <source code object>.
+ *  See https://github.com/blockapps/blockapps-js for an example
+ *  of <source code object>
+ *
+ * `searchable`: an array of the name of contracts that will be indexed
+ *  by Cirrus. The `searchable` contracts MUST be a subset of the compiled
+ *  contracts.
+ *
+ * Compiles the solidity source and returns the codeHashes of the compiled
+ * contracts. If specified, a table is created for all `searchable` contracts.
+ *
+ * Ex:
+ * req.body = [
+ *   {
+ *      searchable :[<contractName>,<contractName>,...],
+ *      source : <contract code strings> or <source code object>
+ *   },
+ *   ...
+ * ]
+ *
+ * Returns: array of contract names and their code hashes
  */
 router.post('/compile', cors(), function (req,res) {
 
@@ -381,7 +405,7 @@ router.post('/compile', cors(), function (req,res) {
 
   var contractHashes = [];
   return Promise.each(contractSources, function(contractSource){
-    return compileSol(contractSource.source).then(function(solObj){
+    return compileSol(contractSource).then(function(solObj){
       // console.log(solObj);
       for(contract in solObj.src){
         contractHashes.push({
