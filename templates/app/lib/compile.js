@@ -69,7 +69,7 @@ function compileSol(solSrc) {
               apiUrl = apiUrl.slice(0,apiUrl.lastIndexOf('/'));
               var options = {
                 method: 'POST',
-                uri: apiUrl + '/cirrus/contract',
+                uri: apiUrl + '/cirrus/contract/',
                 body: detached,
                 headers: {
                   'Content-Type': 'application/json'
