@@ -5,7 +5,7 @@
 [![Join the chat at https://gitter.im/blockapps/bloc](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/blockapps/bloc?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![Build Status](https://travis-ci.org/blockapps/bloc.svg)](https://travis-ci.org/blockapps/bloc) [![npm version](https://badge.fury.io/js/blockapps-bloc.svg)](https://badge.fury.io/js/blockapps-bloc)
 
 `bloc` makes building applications for the Ethereum blockchain as easy. Bloc uses the [blockapps api](https://blockapps.net) and provides: 
-* Application scaffoldig and generated UI based on smart contracts methods to test interactions
+* Application scaffolding and generated UI based on smart contracts methods to test interactions
 * Generated Smart Contract APIs to make working with Ethereum smart contracts easy in any language
 * Ethereum Account key management
 
