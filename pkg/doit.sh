@@ -8,5 +8,6 @@ fi
 
 cd /var/run/strato/bloc-server
 blocserver="/usr/lib/strato/bloc-server/bin/main.js"
-sed -i "s|^apiURL: .*\$|apiURL: 'http$(${ssl:-false} && echo "s")://$stratoHost/strato-api'|" config.yaml
+apiUrl=${apiUrlOverride:-"http$(${ssl:-false} && echo "s")://$stratoHost/strato-api"}
+sed -i "s|^apiURL: .*\$|apiURL: '$apiUrl'|" config.yaml
 HOST=0.0.0.0 exec $blocserver start
