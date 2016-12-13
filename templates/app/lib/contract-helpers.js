@@ -1,5 +1,4 @@
 'use strict';
-
 var path = require('path');                                                                
 var yaml = require('js-yaml');
 var readdirp = require('readdirp');
@@ -12,6 +11,7 @@ var merge = require('deepmerge');
 var fs = require('fs');
 var api = require('blockapps-js');
 
+var Promise = require("bluebird");
 /* utility */
 var getContents = function(file, cb) {
   // try{
@@ -147,7 +147,7 @@ function allKeysStream() {
 // collects a bunch of data, makes an array out of it, and emits it 
 
 function collect() {
-
+  console.log("collect")
   var a = new stream.Stream ()
     , array = [], isDone = false;
  
@@ -234,22 +234,13 @@ function pendingForAddress(address){
   }));
 }
 
-function resolveTxs(txs, cb, resolve){
-  return Promise.all(api.routes.submitTransactionList(txs))
-    .then(function(r) {
-      if(resolve){
-        Promise
-        .all(r.map(function(x){return x.txResult}))
-        .then(cb)
-      } else {
-        Promise
-        .all(r.map(function(x){return x.txHash}))
-        .then(cb)
-      }
-    })
-    .catch(function(err) { 
-      cb("an error: " + err);
-    }); 
+function resolveTXHandlersList(r, resolve, resolver) {
+  if(resolve){
+    return Promise.map(r, function(handlers) { return handlers[resolver]; });
+  } 
+  else {
+    return Promise.map(r, function(handlers) { return handlers.txHash; });
+  }
 }
 
 function txToJSON(t) {
@@ -309,7 +300,7 @@ module.exports = {
   pendingForUser: pendingForUser,
   pendingForAddress: pendingForAddress,
   txToJSON: txToJSON,
-  resolveTxs: resolveTxs,
+  resolveTXHandlersList: resolveTXHandlersList,
   fromSolidity: function(x){
     if(x)
       return x.split('0').join('').hexDecode8();

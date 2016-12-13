@@ -1,5 +1,4 @@
 'use strict';
-
 var express = require('express');
 var cors = require('cors');
 var router = express.Router();
@@ -18,13 +17,11 @@ var yaml = require('js-yaml');
 var config = yaml.safeLoad(fs.readFileSync('config.yaml'));
 var apiURI = config.apiURL;
 
-var api = require('blockapps-js');
-
-var Solidity = require('blockapps-js').Solidity;
 var bodyParser = require('body-parser');
-
 var jsonParser = bodyParser.json();
 
+var api = require('blockapps-js');
+var Solidity = api.Solidity;
 var Transaction = api.ethbase.Transaction;
 var units = api.ethbase.Units;
 var Int = api.ethbase.Int;
@@ -229,29 +226,23 @@ router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
           res.send("invalid address or incorrect password");
           return;
         }
-        var toTx = req.body.txs.map(function(x, _) {
-          var strVal = float2rat(x.value);
+        Promise.map(req.body.txs, function(txSpec) {
+          var strVal = float2rat(txSpec.value);
           var h1 = strVal.split('/')[0];
           var h2 = strVal.split('/')[1];
           var valWei = units.convertEth(h1,h2).from("ether").to("wei");
-          return {toAddress: x.toAddress, value: valWei};
-        })
-        var sendTxs = api.routes.submitSendList(toTx, address, privkeyFrom);
-        Promise.all(sendTxs)
-        .then(function(r) {
-          if(resolve){
-            Promise.all(r.map(function(x){return x.txResult})).then(function(txRes){
-              res.send(txRes);
-            })
-          } else {
-            Promise.all(r.map(function(x){return x.txHash})).then(function(hash){
-              res.send(hash);
-            })
-          }
-        })
-        .catch(function(err) {
-          res.status(500).send("an error: " + err);
-        });
+          return Transaction({to: txSpec.toAddress, value: valWei});
+        }).
+          then(function(txList) { return Transaction.sendList(txList, privkeyFrom); }).
+          then(function(handlersList) {
+            return contractHelpers.resolveTXHandlersList(handlersList, resolve, "senderBalance");
+          }).
+          map(function(bal) { return {senderBalance: bal}; }).
+          bind(res).
+          then(res.json).
+          catch(function(err) {
+            res.status(500).send("an error: " + err);
+          });
       })
       .on('end', function () {
         if (!found) res.send('address ' + address + ' for user ' + user + ' not found');
@@ -379,39 +370,29 @@ router.post('/:user/:address/uploadList', cors(), function(req, res) {
     } catch (e) {
       res.send("address not found or password incorrect");
     }
-    var objProm = contracts.map(function(c, _){
+
+    Promise.map(contracts, function(c) {
       return new Promise(function(resolve, _){
         contractHelpers.contractsMetaAddressStream(c.contractName)
         .pipe(contractHelpers.collect())
         .on('data', function(data){
-          var contractJson = data[0];
-          resolve({
-            contractJson: contractJson,
-            contractName: c.contractName,
-            args: c.args,
-            txParams: c.txParams || {}
-          })
+          var txP = c.txParams || {};
+          var solObj = Solidity.attach(data[0]);
+          var tx = solObj.construct(c.args).txParams(txP);
+          resolve(tx);
         });
-      })
-    });
-
-    Promise.all(objProm).then(function(contractTxs){
-      Promise.all(api.routes.submitContractCreateList(contractTxs, address, privkeyFrom))
-      .then(function(r) {
-        if(resolve){
-          Promise.all(r.map(function(x){return x.txResult})).then(function(txRes){
-            res.send(txRes);
-          })
-        } else {
-          Promise.all(r.map(function(x){return x.txHash})).then(function(hash){
-            res.send(hash);
-          })
-        }
-      })
-      .catch(function(err) {
+      });
+    }).
+      then(function(txList) {return Solidity.sendList(txList, privkeyFrom);}).
+      then(function(handlersList) {
+        return contractHelpers.resolveTXHandlersList(handlersList, resolve, "contract");
+      }).
+      map(function(contract) { return { contractJSON: contract.detach() }; }).
+      bind(res).
+      then(res.json).
+      catch(function(err) {
         res.send("an error: " + err);
       });
-    })
   })
   .on('end', function(){
     console.log("no more users to process")
@@ -620,56 +601,28 @@ router.post('/:user/:address/callList', jsonParser, cors(), function(req, res) {
       res.send("address not found or password incorrect");
     }
 
-    var objProm = contractCalls.map(function(c, _){
+    Promise.map(contractCalls, function(c) {
       return new Promise(function(resolve, _){
         console.log("address: " + c.contractAddress)
         contractHelpers.contractsMetaAddressStream(c.contractName, c.contractAddress)
         .pipe(contractHelpers.collect())
         .on('data', function(data){
-          var contractJson = data[0];
-          resolve({
-            contractName: c.contractName,
-            contractJson: contractJson,
-            methodName: c.methodName,
-            args: c.args,
-            value: c.value,
-            txParams: c.txParams || {}
-          })
+          var txP = c.txParams || {};
+          if (c.value) {
+            txP.value = c.value;
+          }
+          var solObj = Solidity.attach(data[0]);
+          var tx = solObj.state[c.methodName](c.args).txParams(txP);
+          resolve(tx);
         })
       });
-    });
-    Promise.all(objProm).then(function(contractTxs){
-
-      // var reflectedPromises = api.routes.submitContractCallList(contractTxs, address, privkeyFrom);
-      // // Promise.all(api.routes.submitContractCallList(contractTxs, address, privkeyFrom)
-      api.routes.submitContractCallList(contractTxs, address, privkeyFrom)
-      .then(function(r) {
-        if(resolve){
-          Promise.all(r.map(function(x){
-            if(x.error){
-              return x;
-            }else {
-              return x.txResult;
-            }
-          })).then(function(txRes){
-            console.log(txRes)
-            res.send(txRes);
-          })
-        } else {
-          Promise.all(r.map(function(x) {
-            if(x.error){
-              return x;
-            }
-            return x.txHash
-          })).then(function(hash){
-            res.send(hash);
-          })
-        }
-      })
-      .catch(function(err) {
-        res.send("an error: " + err);
-      });
-    })
+    }).
+      then(function(txList) { return Solidity.sendList(txList, privkeyFrom); }).
+      then(function(handlersList) { 
+        return contractHelpers.resolveTXHandlersList(handlersList, resolve, "returnValue"); 
+      }).
+      bind(res).
+      then(res.json);
   })
   .on('end', function(){
     console.log("no more users to process")
