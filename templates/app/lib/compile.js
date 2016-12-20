@@ -63,11 +63,10 @@ function compileSol(solSrc) {
             if(solSrc.searchable[i] === contractNameInPath && solSrc.searchable[i] === contractName) {
               //BEWARE: removing strato-api from apiUrl. Likely need a cirrusUrl
               //field in config.yaml.
-              var apiUrl = yamlConfig.readYaml('config.yaml').apiURL;
-              apiUrl = apiUrl.slice(0,apiUrl.lastIndexOf('/'));
+              var apiUrl = 'http://' + (process.env.CIRRUS || 'cirrus:3333');
               var options = {
                 method: 'POST',
-                uri: apiUrl + '/cirrus/contract/',
+                uri: apiUrl,
                 body: detached,
                 headers: {
                   'Content-Type': 'application/json'
