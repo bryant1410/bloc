@@ -621,7 +621,7 @@ router.post('/:user/:address/callList', jsonParser, cors(), function(req, res) {
       then(function(handlersList) { 
         return contractHelpers.resolveTXHandlersList(handlersList, resolve, "returnValue"); 
       }).
-      map(function(x) { return {returnValue: x}; }).
+      map(function(x) { return {returnValue: x.toString()}; }).
       bind(res).
       then(res.json);
   })
