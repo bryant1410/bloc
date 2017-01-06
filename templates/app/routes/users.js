@@ -237,7 +237,7 @@ router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
           then(function(handlersList) {
             return contractHelpers.resolveTXHandlersList(handlersList, resolve, "senderBalance");
           }).
-          map(function(bal) { return {senderBalance: bal}; }).
+          map(function(r) { var x = {}; x[(resolve == true ? 'senderBalance' : 'senderBalance')] = r; return x; }). //txHash FIXME
           bind(res).
           then(res.json).
           catch(function(err) {
@@ -621,7 +621,7 @@ router.post('/:user/:address/callList', jsonParser, cors(), function(req, res) {
       then(function(handlersList) { 
         return contractHelpers.resolveTXHandlersList(handlersList, resolve, "returnValue"); 
       }).
-      map(function(x) { return {returnValue: x.toString()}; }).
+      map(function(x) { return {returnValue: x.toString()}; }). // FIXME add txHash for resolve==false
       bind(res).
       then(res.json);
   })
