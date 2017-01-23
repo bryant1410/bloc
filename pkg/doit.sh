@@ -1,6 +1,6 @@
 #!/bin/bash
 
-stratoHost=${stratoHost:-$(curl ident.me)}
+stratoHost=${stratoHost:-$(curl -s ident.me)}
 canonicalHost=$(getent hosts $stratoHost | tr -s ' ' | cut -d ' ' -f 2)
 if [[ $stratoHost == "0.0.0.0" || $canonicalHost == "localhost" ]]
 then stratoHost="strato:3000"
