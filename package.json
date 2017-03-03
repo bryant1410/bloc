@@ -52,6 +52,7 @@
     "yargs": "^3.18.0"
   },
   "devDependencies": {
+    "bower": "", 
     "chai": "^3.4.1",
     "event-stream": "^3.3.2",
     "flow-bin": "^0.25.0",
