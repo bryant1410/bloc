@@ -237,7 +237,7 @@ router.post('/:user/:address/sendList', jsonParser, cors(), function(req, res){
           then(function(handlersList) {
             return contractHelpers.resolveTXHandlersList(handlersList, resolve, "senderBalance");
           }).
-          map(function(r) { var x = {}; x[(resolve == true ? 'senderBalance' : 'senderBalance')] = r; return x; }). //txHash FIXME
+          map(function(r) { return resolve ? { senderBalance: r.toString() } : r.toString(); }).
           bind(res).
           then(res.json).
           catch(function(err) {
@@ -618,10 +618,10 @@ router.post('/:user/:address/callList', jsonParser, cors(), function(req, res) {
       });
     }).
       then(function(txList) { return Solidity.sendList(txList, privkeyFrom); }).
-      then(function(handlersList) { 
-        return contractHelpers.resolveTXHandlersList(handlersList, resolve, "returnValue"); 
+      then(function(handlersList) {
+        return contractHelpers.resolveTXHandlersList(handlersList, resolve, "returnValue");
       }).
-      map(function(x) { return {returnValue: x.toString()}; }). // FIXME add txHash for resolve==false
+      map(function(x) { return resolve ? {returnValue: x.toString()} : x.toString(); }).
       bind(res).
       then(res.json);
   })
