@@ -9,7 +9,7 @@
 * Generated Smart Contract APIs to make working with Ethereum smart contracts easy in any language
 * Ethereum Account key management
 
-##Installation
+## Installation
 
 The easiest way to get started is to install `bloc` from NPM:
 
@@ -23,7 +23,7 @@ git clone https://github.com/blockapps/bloc
 cd bloc; npm install -g
 ```
 
-##Generate a new blockchain app
+## Generate a new blockchain app
 
 You can use `bloc init` to create a sample app.
 
@@ -61,7 +61,7 @@ package.json
 
 - Once contracts are deployed `bloc` provides a RESTful interface for interacting with deployed contracts. Simply call contract methods with an address and pass the password to decrypt your key.
 
-##Creating a Sample Account
+## Creating a Sample Account
 
 After initing your app, run the following to download the dependencies for the app:
 
@@ -98,7 +98,7 @@ curl "http://strato-dev3.blockapps.net/eth/v1.2/account?address=6ad318ce7b79c37b
 ]
 ```
 
-##Uploading Contracts
+## Uploading Contracts
 
 Getting a contract live on the blockchain is a two step process
 
@@ -177,7 +177,7 @@ that the local webserver relies on dynamically generated templates, founds in th
 
 This will be reflected in the application as well as at the terminal
 
-##Keyserver & Contract API
+## Keyserver & Contract API
 
 Once you have a deployed contract `bloc` will provide a simple REST API for interacting with the contract. The API has routes for viewing contract methods, symbols, calling contract methods. The keyserver and contract API documentation can be viewed [here](http://blockapps.net/documentation#keyserver-api-endpoints) 
 
